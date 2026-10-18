@@ -2,7 +2,6 @@ import streamlit as st
 
 st.title("Tycoon")
 st.write("toto bude populární...")
-importovat streamlit jako st
 
 # Halloweenský vzhled (CSS styly)
 st.markdown(
