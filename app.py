@@ -1,12 +1,12 @@
 import streamlit as st
-st.title("Tycoon")
+st.title("Halloweenský tycoon")
 st.write("Toto bude populární...")
 
 st.markdown(
     """
     <style>
     .stApp {
-        background-color: #kfa500;
+        background-color: #ffa500;
     }
     </style>
     """,
