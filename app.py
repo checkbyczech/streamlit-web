@@ -20,7 +20,6 @@ stranka = st.sidebar.selectbox("Navigace", ["Domů", "Tycoon"])
 # Logika přepínání stránek
 if stranka == "Domů":
     st.title("🏠 Hlavní stránka")
-    st.write("Toto bude populární...")
 
 elif stranka == "Tycoon":
     st.title("🎃 Záložka Tycoon")
