@@ -8,7 +8,7 @@ SUPABASE_KEY = "sb_publishable_5O_6zjqxUdl7R18l18ZRlQ_kbGSe10F"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. STREAMLIT APLIKACE ---
-st.set_page_config(page_title="Můj Tycoon", page_icon="💰", layout="centered")
+st.set_page_config(page_title="Můj Tycoon", page_icon="🪙", layout="centered")
 
 
 def register_user(username, password):
@@ -46,7 +46,7 @@ def update_money(username, new_money):
 if st.session_state.get("logged_in"):
   username = st.session_state["username"]
 
-  st.title(f"💰 Vítej v tyconu, {username}!")
+  st.title(f"🪙 Vítej v tycoonu, {username}!")
 
   user_data = (
       supabase.table("users")
@@ -57,14 +57,14 @@ if st.session_state.get("logged_in"):
   )
   current_money = float(user_data["money"])
 
-  st.metric(label="Tvé peníze", value=f"{current_money:.0f} Kč")
+  st.metric(label="Tvé coins", value=f"{current_money:.0f} coins")
 
   st.divider()
 
-  if st.button("Pracovat a vydělat 10 Kč 🖱️"):
+  if st.button("Pracovat a vydělat 10 coins 🖱️"):
     current_money += 10
     update_money(username, current_money)
-    st.success("Vydělal jsi 10 Kč a stav se uložil do cloudu!")
+    st.success("Vydělal jsi 10 coins a stav se uložil do cloudu!")
     st.rerun()
 
   if st.button("Odhlásit se"):
