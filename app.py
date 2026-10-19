@@ -20,7 +20,6 @@ def register_user(username, password):
         "username": username,
         "password": password,
         "money": 100,
-        "last_daily": None,
     }).execute()
     return True
   except Exception:
@@ -51,11 +50,10 @@ def get_user_data(username):
   return res[0] if res else None
 
 
-def update_user_db(username, money, last_daily=None):
-  data = {"money": money}
-  if last_daily:
-    data["last_daily"] = last_daily
-  supabase.table("users").update(data).eq("username", username).execute()
+def update_money(username, money):
+  supabase.table("users").update({"money": money}).eq(
+      "username", username
+  ).execute()
 
 
 # --- PŘIHLÁŠENÍ / HLAVNÍ HRA ---
@@ -64,7 +62,6 @@ if st.session_state.get("logged_in"):
   user_data = get_user_data(username)
 
   money = float(user_data.get("money", 100))
-  last_daily_str = user_data.get("last_daily")
 
   # --- HLAVNÍ STRÁNKA HRY ---
   st.title(f"🪙 Vítej v tycoonu, {username}!")
@@ -76,21 +73,19 @@ if st.session_state.get("logged_in"):
   # --- DENNÍ ODMĚNA ---
   st.subheader("🎁 Denní odměna (Daily Reward)")
 
+  last_daily_dt = st.session_state.get("last_daily_claim")
   can_claim = True
-  if last_daily_str:
-    try:
-      last_daily_dt = datetime.fromisoformat(last_daily_str)
-      if datetime.now() - last_daily_dt < timedelta(hours=24):
-        can_claim = False
-    except Exception:
-      can_claim = True
+
+  if last_daily_dt:
+    if datetime.now() - last_daily_dt < timedelta(hours=24):
+      can_claim = False
 
   if can_claim:
     if st.button("🎉 Vyzvednout denní odměnu (10 - 250 coins)"):
       reward = random.randint(10, 250)
       money += reward
-      now_str = datetime.now().isoformat()
-      update_user_db(username, money, last_daily=now_str)
+      st.session_state["last_daily_claim"] = datetime.now()
+      update_money(username, money)
       st.balloons()
       st.success(f"Získal jsi odměnu **+{reward} coins**!")
       st.rerun()
@@ -104,7 +99,7 @@ if st.session_state.get("logged_in"):
   with col1:
     if st.button("🖱️ Pracovat (+10 coins)", use_container_width=True):
       money += 10
-      update_user_db(username, money)
+      update_money(username, money)
       st.rerun()
 
   with col2:
