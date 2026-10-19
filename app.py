@@ -9,8 +9,29 @@ SUPABASE_KEY = "sb_publishable_5O_6zjqxUdl7R18l18ZRlQ_kbGSe10F"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIG HRY ---
+# --- 2. CONFIG HRY A STYLY (POZADÍ) ---
 st.set_page_config(page_title="Můj Tycoon", page_icon="🪙", layout="centered")
+
+# CSS pro duhový / plynulý přechod na pozadí
+st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+        background-size: 400% 400%;
+        animation: gradient 15s ease infinite;
+    }
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    /* Vylepšení čitelnosti textů v boxech */
+    h1, h2, h3, p, label, .stMetric label, .stMetric div {
+        color: #ffffff !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 
 # --- DATABÁZOVÉ FUNKCE ---
