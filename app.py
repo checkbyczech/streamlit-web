@@ -1,113 +1,106 @@
-import streamlit as st
-st.title("Tycoon")
-st.write("Toto bude populární...")
-
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #ffa500;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,)
-
-
-import sqlite3
+from supabase import create_client, Client
 import streamlit as st
 
-DB_NAME = "users.db"
+# --- 1. PŘIPOJENÍ K SUPABASE ---
+SUPABASE_URL = "https://gesbcerggeosyqzfphom.supabase.co"
+SUPABASE_KEY = "sb_publishable_5O_6zjqxUdl7R18l18ZRlQ_kbGSe10F"
 
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def init_db():
-  """Vytvoří databázi a tabulku uživatelů, pokud neexistuje."""
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password TEXT
-        )
-    """)
-  conn.commit()
-  conn.close()
+# --- 2. STREAMLIT APLIKACE ---
+st.set_page_config(page_title="Můj Tycoon", page_icon="💰", layout="centered")
 
 
 def register_user(username, password):
-  """Zaregistruje nového uživatele do databáze."""
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
   try:
-    cursor.execute(
-        "INSERT INTO users (username, password) VALUES (?, ?)",
-        (username, password),
-    )
-    conn.commit()
-    success = True
-  except sqlite3.IntegrityError:
-    success = False  # Uživatel již existuje
-  conn.close()
-  return success
+    supabase.table("users").insert({
+        "username": username,
+        "password": password,
+        "money": 100,
+    }).execute()
+    return True
+  except Exception:
+    return False
 
 
 def login_user(username, password):
-  """Ověří přihlašovací údaje uživatele."""
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
-  cursor.execute(
-      "SELECT * FROM users WHERE username = ? AND password = ?",
-      (username, password),
+  response = (
+      supabase.table("users")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .execute()
   )
-  user = cursor.fetchone()
-  conn.close()
-  return user is not None
+  if len(response.data) > 0:
+    return response.data[0]
+  return None
 
 
-# --- STREAMLIT APLIKACE ---
-st.set_page_config(page_title="Přihlášení", page_icon="🔐", layout="centered")
-init_db()
+def update_money(username, new_money):
+  supabase.table("users").update({"money": new_money}).eq(
+      "username", username
+  ).execute()
 
-st.title("🔐 Registrace a Přihlášení")
 
-# Výběr akce v postranním panelu
-choice = st.sidebar.selectbox("Zvol akci", ["Přihlášení", "Registrace"])
-
-if choice == "Registrace":
-  st.subheader("Vytvořit nový účet")
-  new_user = st.text_input("Uživatelské jméno")
-  new_pass = st.text_input("Heslo", type="password")
-
-  if st.button("Zaregistrovat se"):
-    if new_user and new_pass:
-      if register_user(new_user, new_pass):
-        st.success("Registrace proběhla úspěšně! Nyní se můžeš přihlásit.")
-      else:
-        st.error("Tohle uživatelské jméno už je obsazené.")
-    else:
-      st.warning("Vyplň prosím všechna pole.")
-
-elif choice == "Přihlášení":
-  st.subheader("Přihlášení do systému")
-  username = st.text_input("Uživatelské jméno")
-  password = st.text_input("Heslo", type="password")
-
-  if st.button("Přihlásit"):
-    if login_user(username, password):
-      st.session_state["logged_in"] = True
-      st.session_state["username"] = username
-      st.success(f"Vítej, {username}!")
-      st.rerun()
-    else:
-      st.error("Nesprávné uživatelské jméno nebo heslo.")
-
-# Obsah zobrazený pouze po přihlášení
+# --- PŘIHLÁŠENÍ / REGISTRACE ---
 if st.session_state.get("logged_in"):
-  st.divider()
-  st.write(
-      f"Jsi úspěšně přihlášen jako: **{st.session_state['username']}**"
+  username = st.session_state["username"]
+
+  st.title(f"💰 Vítej v tyconu, {username}!")
+
+  user_data = (
+      supabase.table("users")
+      .select("money")
+      .eq("username", username)
+      .execute()
+      .data[0]
   )
+  current_money = float(user_data["money"])
+
+  st.metric(label="Tvé peníze", value=f"{current_money:.0f} Kč")
+
+  st.divider()
+
+  if st.button("Pracovat a vydělat 10 Kč 🖱️"):
+    current_money += 10
+    update_money(username, current_money)
+    st.success("Vydělal jsi 10 Kč a stav se uložil do cloudu!")
+    st.rerun()
 
   if st.button("Odhlásit se"):
     st.session_state["logged_in"] = False
     st.session_state.pop("username", None)
     st.rerun()
+
+else:
+  st.title("🔐 Přihlášení do Tycoonu")
+
+  col1, col2 = st.columns(2)
+
+  with col1:
+    st.subheader("Přihlásit se")
+    l_user = st.text_input("Uživatelské jméno", key="l_user")
+    l_pass = st.text_input("Heslo", type="password", key="l_pass")
+
+    if st.button("Vstoupit do hry"):
+      user = login_user(l_user, l_pass)
+      if user:
+        st.session_state["logged_in"] = True
+        st.session_state["username"] = l_user
+        st.rerun()
+      else:
+        st.error("Nesprávné jméno nebo heslo.")
+
+  with col2:
+    st.subheader("Registrace")
+    r_user = st.text_input("Nové uživatelské jméno", key="r_user")
+    r_pass = st.text_input("Nové heslo", type="password", key="r_pass")
+
+    if st.button("Zaregistrovat"):
+      if r_user and r_pass:
+        if register_user(r_user, r_pass):
+          st.success("Registrace úspěšná! Nyní se můžeš přihlásit.")
+        else:
+          st.error("Tohle uživatelské jméno už je obsazené.")
+      else:
+        st.warning("Vyplň obě pole.")
