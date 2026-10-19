@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import random
+import time
 from supabase import create_client, Client
 import streamlit as st
 
@@ -25,7 +25,6 @@ st.markdown("""
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-    /* Vylepšení čitelnosti textů v boxech */
     h1, h2, h3, p, label, .stMetric label, .stMetric div {
         color: #ffffff !important;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
@@ -41,6 +40,7 @@ def register_user(username, password):
         "username": username,
         "password": password,
         "money": 100,
+        "last_daily": "0",
     }).execute()
     return True
   except Exception:
@@ -71,10 +71,11 @@ def get_user_data(username):
   return res[0] if res else None
 
 
-def update_money(username, money):
-  supabase.table("users").update({"money": money}).eq(
-      "username", username
-  ).execute()
+def update_user_db(username, money, last_daily=None):
+  data = {"money": money}
+  if last_daily is not None:
+    data["last_daily"] = str(last_daily)
+  supabase.table("users").update(data).eq("username", username).execute()
 
 
 # --- PŘIHLÁŠENÍ / HLAVNÍ HRA ---
@@ -83,6 +84,7 @@ if st.session_state.get("logged_in"):
   user_data = get_user_data(username)
 
   money = float(user_data.get("money", 100))
+  last_daily_str = user_data.get("last_daily", "0")
 
   # --- HLAVNÍ STRÁNKA HRY ---
   st.title(f"🪙 Vítej v tycoonu, {username}!")
@@ -91,27 +93,36 @@ if st.session_state.get("logged_in"):
 
   st.divider()
 
-  # --- DENNÍ ODMĚNA ---
+  # --- DENNÍ ODMĚNA (24 hodin = 86400 sekund) ---
   st.subheader("🎁 Denní odměna (Daily Reward)")
 
-  last_daily_dt = st.session_state.get("last_daily_claim")
   can_claim = True
-
-  if last_daily_dt:
-    if datetime.now() - last_daily_dt < timedelta(hours=24):
+  try:
+    last_time = float(last_daily_str)
+    current_time = time.time()
+    # 86400 sekund = 24 hodin
+    if current_time - last_time < 86400:
       can_claim = False
+      zbylý_čas = 86400 - (current_time - last_time)
+      hodiny = int(zbylý_čas // 3600)
+      minuty = int((zbylý_čas % 3600) // 60)
+  except Exception:
+    can_claim = True
 
   if can_claim:
     if st.button("🎉 Vyzvednout denní odměnu (10 - 250 coins)"):
       reward = random.randint(10, 250)
       money += reward
-      st.session_state["last_daily_claim"] = datetime.now()
-      update_money(username, money)
+      now_timestamp = time.time()
+      update_user_db(username, money, last_daily=now_timestamp)
       st.balloons()
       st.success(f"Získal jsi odměnu **+{reward} coins**!")
       st.rerun()
   else:
-    st.info("⏳ Dnešní odměnu už máš vybranou! Vrať se zase zítra.")
+    st.info(
+        f"⏳ Dnešní odměnu už máš vybranou! Další si můžeš vyzvednout za"
+        f" cca {hodiny}h {minuty}m."
+    )
 
   st.divider()
 
@@ -120,7 +131,7 @@ if st.session_state.get("logged_in"):
   with col1:
     if st.button("🖱️ Pracovat (+10 coins)", use_container_width=True):
       money += 10
-      update_money(username, money)
+      update_user_db(username, money)  # nemění last_daily
       st.rerun()
 
   with col2:
