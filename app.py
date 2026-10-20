@@ -130,7 +130,7 @@ if st.session_state.get("logged_in"):
   col1, col2 = st.columns(2)
   with col1:
     if st.button("🖱️ Pracovat (+5 coins)", use_container_width=True):
-      money += 10
+      money += 5
       update_user_db(username, money)  # nemění last_daily
       st.rerun()
 
