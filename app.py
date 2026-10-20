@@ -110,8 +110,8 @@ if st.session_state.get("logged_in"):
     can_claim = True
 
   if can_claim:
-    if st.button("🎉 Vyzvednout denní odměnu (10 - 250 coins)"):
-      reward = random.randint(10, 250)
+    if st.button("🎉 Vyzvednout denní odměnu (10 - 100 coins)"):
+      reward = random.randint(10, 100)
       money += reward
       now_timestamp = time.time()
       update_user_db(username, money, last_daily=now_timestamp)
@@ -129,7 +129,7 @@ if st.session_state.get("logged_in"):
   # Práce a Odhlášení
   col1, col2 = st.columns(2)
   with col1:
-    if st.button("🖱️ Pracovat (+10 coins)", use_container_width=True):
+    if st.button("🖱️ Pracovat (+5 coins)", use_container_width=True):
       money += 10
       update_user_db(username, money)  # nemění last_daily
       st.rerun()
