@@ -89,7 +89,18 @@ if st.session_state.get("logged_in"):
   # --- HLAVNÍ STRÁNKA HRY ---
   st.title(f"🪙 Vítej v tycoonu, {username}!")
 
-  st.metric(label="Tvé coins", value=f"{money:,.0f} coins")
+   st.markdown(
+    f"""
+    <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.2);">
+        <p style="margin: 0; font-size: 14px; opacity: 0.8;">Tvé coins</p>
+        <div style="font-size: 32px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <img src="https://img.icons8.com/color/48/expensive-2--v1.png" width="32" style="vertical-align: middle;">
+            <span>{money:,.0f}</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+   )
 
   st.divider()
 
