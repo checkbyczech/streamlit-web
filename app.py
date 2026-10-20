@@ -89,7 +89,7 @@ if st.session_state.get("logged_in"):
   # --- HLAVNÍ STRÁNKA HRY ---
   st.title(f"🪙 Vítej v tycoonu, {username}!")
 
-   st.markdown(
+  st.markdown(
     f"""
     <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.2);">
         <p style="margin: 0; font-size: 14px; opacity: 0.8;">Tvé coins</p>
