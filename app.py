@@ -154,7 +154,7 @@ with col2:
 with col3:
     st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
 
-# --- SPRÁVA POSTUPU (ULOŽENÍ / NAČTENÍ) ---
+# --- SPRÁVA POSTUPU (ULOŽENÍ / NAČTENÍ PŘES FORMULÁŘ) ---
 with st.expander("💾 Uložit / Načíst postup (Save Code)"):
     st.write("Tvůj záchranný kód uchovává coiny, odpočet i inventář karet.")
     
@@ -167,14 +167,18 @@ with st.expander("💾 Uložit / Načíst postup (Save Code)"):
     
     st.text_input("Tvůj kód pro uložení (zkopíruj si ho):", value=code_str)
     
-    input_code = st.text_input("Vlož svůj uložený kód pro obnovení:")
-    if st.button("Obnovit postup z kódu"):
-        try:
-            decoded_data = json.loads(base64.b64decode(input_code.encode("utf-8")).decode("utf-8"))
-            st.session_state.coins = decoded_data["coins"]
-            st.session_state.last_daily = decoded_data["last_daily"]
-            st.session_state.inventory = decoded_data.get("inventory", [])
-            st.success("Postup byl úspěšně obnoven!")
-            st.rerun()
-        except:
-            st.error("Neplatný kód! Zkontroluj, zda jsi zkopíroval správný text.")
+    # Použití formuláře zajistí, že se textové pole nevymaže při odeslání
+    with st.form("load_form"):
+        input_code = st.text_input("Vlož svůj uložený kód pro obnovení:")
+        submit_button = st.form_submit_button("Obnovit postup z kódu")
+        
+        if submit_button:
+            try:
+                decoded_data = json.loads(base64.b64decode(input_code.encode("utf-8")).decode("utf-8"))
+                st.session_state.coins = decoded_data["coins"]
+                st.session_state.last_daily = decoded_data["last_daily"]
+                st.session_state.inventory = decoded_data.get("inventory", [])
+                st.success("Postup byl úspěšně obnoven!")
+                st.rerun()
+            except Exception:
+                st.error("Neplatný kód! Zkontroluj, zda jsi zkopíroval správný text.")
