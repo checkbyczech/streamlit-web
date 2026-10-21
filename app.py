@@ -8,53 +8,77 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- STYLY ---
+# --- STYLY A POZADÍ ---
 st.markdown("""
     <style>
+    /* Pozadí celé aplikace */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+        color: #f8fafc;
+    }
+    
+    /* Styling hlavního nadpisu Infinity Zone */
     .main-header {
         font-size: 2.8rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #4F46E5, #06B6D4);
+        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0px;
     }
     .sub-header {
         font-size: 1.1rem;
-        color: #9CA3AF;
+        color: #94a3b8;
         margin-bottom: 25px;
     }
+    
+    /* Vlastní kartička pro zůstatek */
     .coin-card {
-        background-color: #1F2937;
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(10px);
         padding: 15px 20px;
-        border-radius: 12px;
-        border: 1px solid #374151;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
         gap: 15px;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
-    .coin-icon {
-        font-size: 2.2rem;
+    .coin-img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
     }
     .coin-info {
         display: flex;
         flex-direction: column;
     }
     .coin-label {
-        color: #9CA3AF;
+        color: #94a3b8;
         font-size: 0.85rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
     .coin-value {
-        color: #F3F4F6;
+        color: #f8fafc;
         font-size: 1.8rem;
         font-weight: 700;
     }
+    
+    /* Vycentrování obrázku klikátka */
+    .clicker-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
+
+# URL obrázku zlaté mince
+COIN_IMAGE_URL = "https://img.icons8.com/emoji/96/gold-medal-emoji.png"
 
 # --- INICIALIZACE STAVU ---
 if "coins" not in st.session_state:
@@ -66,10 +90,10 @@ if "last_daily" not in st.session_state:
 st.markdown('<div class="main-header">♾️ Infinity Zone</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Vítej na hlavním portálu tvojí aplikace</div>', unsafe_allow_html=True)
 
-# --- KARTIČKA ZŮSTATKU ---
+# --- KARTIČKA ZŮSTATKU S OBRÁZKEM MINCE ---
 st.markdown(f"""
     <div class="coin-card">
-        <div class="coin-icon">🪙</div>
+        <img src="{COIN_IMAGE_URL}" class="coin-img" alt="Coin">
         <div class="coin-info">
             <span class="coin-label">Zůstatek coinů</span>
             <span class="coin-value">{st.session_state.coins:,}</span>
@@ -80,7 +104,7 @@ st.markdown(f"""
 # --- DENNÍ ODMĚNA ---
 st.subheader("🎁 Denní odměna")
 current_time = time.time()
-cooldown = 86400  # 24 hodin v sekundách
+cooldown = 86400  # 24 hodin
 
 if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
@@ -94,8 +118,12 @@ else:
     minutes = (remaining % 3600) // 60
     st.info(f"Další denní odměna bude dostupná za {hours}h {minutes}m.")
 
-# --- TYCOON CLICKER ---
+# --- TYCOON CLICKER S OBRÁZKEM MINCE ---
 st.subheader("🎮 Tycoon Clicker")
-if st.button("Kliknout pro +1 Coin", use_container_width=True):
-    st.session_state.coins += 1
-    st.rerun()
+
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image(COIN_IMAGE_URL, width=150)
+    if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
+        st.session_state.coins += 1
+        st.rerun()
