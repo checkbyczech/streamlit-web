@@ -199,3 +199,5 @@ with col2:
     st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
 with col3:
     st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+
+    save_progress()
