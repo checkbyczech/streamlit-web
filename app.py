@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 
 # Nastavení stránky
 st.set_page_config(
@@ -7,10 +8,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- VYROVNANÝ STYL PRO HLAVIČKU A KARTIČKU ---
+# --- STYLY ---
 st.markdown("""
     <style>
-    /* Styling hlavního nadpisu Infinity Zone */
     .main-header {
         font-size: 2.8rem;
         font-weight: 800;
@@ -24,8 +24,6 @@ st.markdown("""
         color: #9CA3AF;
         margin-bottom: 25px;
     }
-    
-    /* Vlastní kartička pro zůstatek s ikonou */
     .coin-card {
         background-color: #1F2937;
         padding: 15px 20px;
@@ -58,15 +56,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZACE STAVU (SESSION STATE) ---
+# --- INICIALIZACE STAVU ---
 if "coins" not in st.session_state:
     st.session_state.coins = 0
+if "last_daily" not in st.session_state:
+    st.session_state.last_daily = 0
 
 # --- HERNÍ HLAVIČKA ---
 st.markdown('<div class="main-header">♾️ Infinity Zone</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Vítej na hlavním portálu tvojí aplikace</div>', unsafe_allow_html=True)
 
-# --- ZOBRAZENÍ ZŮSTATKU VLASTNÍ KARTIČKOU ---
+# --- KARTIČKA ZŮSTATKU ---
 st.markdown(f"""
     <div class="coin-card">
         <div class="coin-icon">🪙</div>
@@ -77,7 +77,25 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- HLAVNÍ AKCE ---
+# --- DENNÍ ODMĚNA ---
+st.subheader("🎁 Denní odměna")
+current_time = time.time()
+cooldown = 86400  # 24 hodin v sekundách
+
+if current_time - st.session_state.last_daily > cooldown:
+    if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
+        st.session_state.coins += 100
+        st.session_state.last_daily = current_time
+        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
+        st.rerun()
+else:
+    remaining = int(cooldown - (current_time - st.session_state.last_daily))
+    hours = remaining // 3600
+    minutes = (remaining % 3600) // 60
+    st.info(f"Další denní odměna bude dostupná za {hours}h {minutes}m.")
+
+# --- TYCOON CLICKER ---
+st.subheader("🎮 Tycoon Clicker")
 if st.button("Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
     st.rerun()
