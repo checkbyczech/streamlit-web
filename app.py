@@ -187,7 +187,6 @@ st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
     save_progress()
-    st.rerun()
 
 # --- INVENTÁŘ KART ---
 st.subheader("🃏 Inventář karet")
