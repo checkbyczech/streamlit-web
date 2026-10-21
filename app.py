@@ -1,13 +1,30 @@
 import streamlit as st
 import time
-import base64
-import json
 
 st.set_page_config(
     page_title="Infinity Zone",
     page_icon="♾️",
     layout="wide"
 )
+
+# --- AUTOMATICKÉ UKLÁDÁNÍ DO URL ---
+params = st.query_params
+
+if "coins" not in st.session_state:
+    try:
+        st.session_state.coins = int(params.get("coins", 0))
+    except:
+        st.session_state.coins = 0
+
+if "last_daily" not in st.session_state:
+    try:
+        st.session_state.last_daily = float(params.get("daily", 0))
+    except:
+        st.session_state.last_daily = 0
+
+def save_state():
+    st.query_params["coins"] = str(st.session_state.coins)
+    st.query_params["daily"] = str(st.session_state.last_daily)
 
 # --- STYLY ---
 st.markdown("""
@@ -91,14 +108,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZACE STAVU ---
-if "coins" not in st.session_state:
-    st.session_state.coins = 0
-if "last_daily" not in st.session_state:
-    st.session_state.last_daily = 0
-if "inventory" not in st.session_state:
-    st.session_state.inventory = []
-
 # --- HLAVIČKA ---
 st.markdown("""
     <div class="header-container">
@@ -128,6 +137,7 @@ if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
+        save_state()
         st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
         st.rerun()
 else:
@@ -140,6 +150,7 @@ else:
 st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
+    save_state()
     st.rerun()
 
 # --- INVENTÁŘ KART ---
@@ -153,28 +164,3 @@ with col2:
     st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
 with col3:
     st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-
-# --- SPRÁVA POSTUPU (ULOŽENÍ / NAČTENÍ) ---
-with st.expander("💾 Uložit / Načíst postup (Save Code)"):
-    st.write("Tvůj záchranný kód nyní uchovává coiny, odpočet i budoucí inventář karet.")
-    
-    save_data = {
-        "coins": st.session_state.coins,
-        "last_daily": st.session_state.last_daily,
-        "inventory": st.session_state.inventory
-    }
-    code_str = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
-    
-    st.text_input("Tvůj kód pro uložení (zkopíruj si ho):", value=code_str)
-    
-    input_code = st.text_input("Vlož svůj uložený kód pro obnovení:")
-    if st.button("Obnovit postup z kódu"):
-        try:
-            decoded_data = json.loads(base64.b64decode(input_code.encode("utf-8")).decode("utf-8"))
-            st.session_state.coins = decoded_data["coins"]
-            st.session_state.last_daily = decoded_data["last_daily"]
-            st.session_state.inventory = decoded_data.get("inventory", [])
-            st.success("Postup byl úspěšně obnoven!")
-            st.rerun()
-        except:
-            st.error("Neplatný kód! Zkontroluj, zda jsi zkopíroval správný text.")
