@@ -79,6 +79,15 @@ st.markdown("""
         font-size: 1.8rem;
         font-weight: 700;
     }
+    .card-slot {
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -87,6 +96,8 @@ if "coins" not in st.session_state:
     st.session_state.coins = 0
 if "last_daily" not in st.session_state:
     st.session_state.last_daily = 0
+if "inventory" not in st.session_state:
+    st.session_state.inventory = []
 
 # --- HLAVIČKA ---
 st.markdown("""
@@ -131,23 +142,38 @@ if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
     st.rerun()
 
+# --- INVENTÁŘ KART ---
+st.subheader("🃏 Inventář karet")
+st.write("Tady najdeš své budoucí karty a sběratelské předměty.")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.markdown('<div class="card-slot">🔒 Karta #1<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+with col2:
+    st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+with col3:
+    st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+
 # --- SPRÁVA POSTUPU (ULOŽENÍ / NAČTENÍ) ---
 with st.expander("💾 Uložit / Načíst postup (Save Code)"):
-    st.write("Jelikož server občas resetuje paměť, můžeš si vygenerovat svůj záchranný kód.")
+    st.write("Tvůj záchranný kód nyní uchovává coiny, odpočet i budoucí inventář karet.")
     
-    # Generování kódu z aktuálního stavu
-    save_data = {"coins": st.session_state.coins, "last_daily": st.session_state.last_daily}
+    save_data = {
+        "coins": st.session_state.coins,
+        "last_daily": st.session_state.last_daily,
+        "inventory": st.session_state.inventory
+    }
     code_str = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
     
     st.text_input("Tvůj kód pro uložení (zkopíruj si ho):", value=code_str)
     
-    # Načtení kódu
     input_code = st.text_input("Vlož svůj uložený kód pro obnovení:")
     if st.button("Obnovit postup z kódu"):
         try:
             decoded_data = json.loads(base64.b64decode(input_code.encode("utf-8")).decode("utf-8"))
             st.session_state.coins = decoded_data["coins"]
             st.session_state.last_daily = decoded_data["last_daily"]
+            st.session_state.inventory = decoded_data.get("inventory", [])
             st.success("Postup byl úspěšně obnoven!")
             st.rerun()
         except:
