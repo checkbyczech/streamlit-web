@@ -1,43 +1,14 @@
-import json
-import os
-import time
 import streamlit as st
+import time
 
-# Nastavení stránky
+# 1. Nastavení stránky
 st.set_page_config(
     page_title="Infinity Zone",
     page_icon="♾️",
     layout="wide"
 )
 
-# --- UKLÁDÁNÍ DAT (Aby se progress a denní odměna neresetovaly) ---
-DATA_FILE = "game_data.json"
-
-def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r") as f:
-                return json.load(f)
-        except:
-            pass
-    return {"coins": 0, "last_daily": 0}
-
-def save_data():
-    data = {
-        "coins": st.session_state.coins,
-        "last_daily": st.session_state.last_daily
-    }
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
-
-# Inicializace stavu ze souboru
-if "data_loaded" not in st.session_state:
-    saved = load_data()
-    st.session_state.coins = saved["coins"]
-    st.session_state.last_daily = saved["last_daily"]
-    st.session_state.data_loaded = True
-
-# --- STYLY A DESIGN ---
+# 2. Vylepšené vizuální styly
 st.markdown("""
     <style>
     .stApp {
@@ -45,7 +16,6 @@ st.markdown("""
         color: #f8fafc;
     }
     
-    /* Hlavička s IZ čtvercem */
     .header-container {
         display: flex;
         align-items: center;
@@ -66,19 +36,18 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     }
     .main-header {
-        font-size: 2.6rem;
+        font-size: 2.5rem;
         font-weight: 800;
         background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     .sub-header {
-        font-size: 1.1rem;
+        font-size: 1.0rem;
         color: #94a3b8;
         margin-bottom: 25px;
     }
     
-    /* Kartička zůstatku */
     .coin-card {
         background: rgba(30, 41, 59, 0.7);
         backdrop-filter: blur(10px);
@@ -92,7 +61,7 @@ st.markdown("""
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
     .coin-icon {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
     }
     .coin-info {
         display: flex;
@@ -100,7 +69,7 @@ st.markdown("""
     }
     .coin-label {
         color: #94a3b8;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -113,7 +82,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- HLAVIČKA S IZ ---
+# 3. Inicializace paměti běhu (Session State)
+if "coins" not in st.session_state:
+    st.session_state.coins = 0
+if "last_daily" not in st.session_state:
+    st.session_state.last_daily = 0
+
+# 4. Záhlaví s rozlišením IZ a loga
 st.markdown("""
     <div class="header-container">
         <div class="iz-box">IZ</div>
@@ -122,7 +97,7 @@ st.markdown("""
     <div class="sub-header">Vítej na hlavním portálu tvojí aplikace</div>
 """, unsafe_allow_html=True)
 
-# --- ZŮSTATEK ---
+# 5. Karta zůstatku
 st.markdown(f"""
     <div class="coin-card">
         <div class="coin-icon">🪙</div>
@@ -133,17 +108,16 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- DENNÍ ODMĚNA ---
+# 6. Sekce Denní odměny
 st.subheader("🎁 Denní odměna")
 current_time = time.time()
-cooldown = 86400  # 24 hodin v sekundách
+cooldown = 86400  # 24 hodin
 
 if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
-        save_data()
-        st.success("Úspěšně jsi vyzvedl denní odměna +100 coinů!")
+        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
         st.rerun()
 else:
     remaining = int(cooldown - (current_time - st.session_state.last_daily))
@@ -151,9 +125,8 @@ else:
     minutes = (remaining % 3600) // 60
     st.info(f"Další denní odměna bude dostupná za {hours}h {minutes}m.")
 
-# --- TYCOON CLICKER ---
+# 7. Sekce Klikátka (Tycoon)
 st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
-    save_data()
     st.rerun()
