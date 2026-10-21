@@ -1,21 +1,51 @@
-import streamlit as st
+import json
+import os
 import time
+import streamlit as st
 
-# 1. Nastavení stránky
 st.set_page_config(
     page_title="Infinity Zone",
     page_icon="♾️",
     layout="wide"
 )
 
-# 2. Vylepšené vizuální styly
+# --- TRVALÉ UKLÁDÁNÍ DAT ---
+DATA_FILE = "game_data.json"
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"coins": 0, "last_daily": 0}
+
+def save_data():
+    data = {
+        "coins": st.session_state.coins,
+        "last_daily": st.session_state.last_daily
+    }
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except:
+        pass
+
+# Načtení dat při spuštění
+if "data_loaded" not in st.session_state:
+    saved_data = load_data()
+    st.session_state.coins = saved_data["coins"]
+    st.session_state.last_daily = saved_data["last_daily"]
+    st.session_state.data_loaded = True
+
+# --- STYLY ---
 st.markdown("""
     <style>
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
         color: #f8fafc;
     }
-    
     .header-container {
         display: flex;
         align-items: center;
@@ -24,15 +54,16 @@ st.markdown("""
     }
     .iz-box {
         background: linear-gradient(135deg, #4F46E5, #06B6D4);
+        min-width: 55px;
         width: 55px;
         height: 55px;
         border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.6rem;
+        font-size: 1.5rem;
         font-weight: 900;
-        color: white;
+        color: #ffffff !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     }
     .main-header {
@@ -47,7 +78,6 @@ st.markdown("""
         color: #94a3b8;
         margin-bottom: 25px;
     }
-    
     .coin-card {
         background: rgba(30, 41, 59, 0.7);
         backdrop-filter: blur(10px);
@@ -61,7 +91,7 @@ st.markdown("""
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
     .coin-icon {
-        font-size: 2.2rem;
+        font-size: 2.5rem;
     }
     .coin-info {
         display: flex;
@@ -82,13 +112,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Inicializace paměti běhu (Session State)
-if "coins" not in st.session_state:
-    st.session_state.coins = 0
-if "last_daily" not in st.session_state:
-    st.session_state.last_daily = 0
-
-# 4. Záhlaví s rozlišením IZ a loga
+# --- HLAVIČKA ---
 st.markdown("""
     <div class="header-container">
         <div class="iz-box">IZ</div>
@@ -97,7 +121,7 @@ st.markdown("""
     <div class="sub-header">Vítej na hlavním portálu tvojí aplikace</div>
 """, unsafe_allow_html=True)
 
-# 5. Karta zůstatku
+# --- KARTIZKA ZŮSTATKU ---
 st.markdown(f"""
     <div class="coin-card">
         <div class="coin-icon">🪙</div>
@@ -108,7 +132,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# 6. Sekce Denní odměny
+# --- DENNÍ ODMĚNA ---
 st.subheader("🎁 Denní odměna")
 current_time = time.time()
 cooldown = 86400  # 24 hodin
@@ -117,6 +141,7 @@ if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
+        save_data()
         st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
         st.rerun()
 else:
@@ -125,8 +150,9 @@ else:
     minutes = (remaining % 3600) // 60
     st.info(f"Další denní odměna bude dostupná za {hours}h {minutes}m.")
 
-# 7. Sekce Klikátka (Tycoon)
+# --- TYCOON CLICKER ---
 st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
+    save_data()
     st.rerun()
