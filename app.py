@@ -1,30 +1,13 @@
 import streamlit as st
 import time
+import json
+import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="Infinity Zone",
     page_icon="♾️",
     layout="wide"
 )
-
-# --- AUTOMATICKÉ UKLÁDÁNÍ DO URL ---
-params = st.query_params
-
-if "coins" not in st.session_state:
-    try:
-        st.session_state.coins = int(params.get("coins", 0))
-    except:
-        st.session_state.coins = 0
-
-if "last_daily" not in st.session_state:
-    try:
-        st.session_state.last_daily = float(params.get("daily", 0))
-    except:
-        st.session_state.last_daily = 0
-
-def save_state():
-    st.query_params["coins"] = str(st.session_state.coins)
-    st.query_params["daily"] = str(st.session_state.last_daily)
 
 # --- STYLY ---
 st.markdown("""
@@ -108,6 +91,59 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- INICIALIZACE STAVU ---
+if "coins" not in st.session_state:
+    st.session_state.coins = 0
+if "last_daily" not in st.session_state:
+    st.session_state.last_daily = 0
+if "inventory" not in st.session_state:
+    st.session_state.inventory = []
+
+# --- SKRIPT PRO PROHLÍŽEČOVÉ ÚLOŽIŠTĚ ---
+# Tento JavaScript načte data z LocalStorage při startu a uloží je při změně
+local_storage_code = f"""
+<script>
+const savedCoins = localStorage.getItem("iz_coins");
+const savedDaily = localStorage.getItem("iz_daily");
+
+if (savedCoins !== null && {st.session_state.coins} === 0) {{
+    // Pokud máme data v prohlížeči, pošleme je zpět do Streamlitu přes URL parametry
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("loaded")) {{
+        url.searchParams.set("c", savedCoins);
+        url.searchParams.set("d", savedDaily || "0");
+        url.searchParams.set("loaded", "1");
+        window.location.href = url.toString();
+    }}
+}}
+
+// Funkce pro uložení
+window.saveToBrowser = function(coins, daily) {{
+    localStorage.setItem("iz_coins", coins);
+    localStorage.setItem("iz_daily", daily);
+}};
+</script>
+"""
+components.html(local_storage_code, height=0)
+
+# Načtení parametrů předaných z prohlížeče
+params = st.query_params
+if "c" in params and st.session_state.coins == 0:
+    try:
+        st.session_state.coins = int(params["c"])
+        st.session_state.last_daily = float(params.get("d", 0))
+    except:
+        pass
+
+def save_progress():
+    # Uloží data do session a zároveň spustí JS pro uložení do LocalStorage prohlížeče
+    components.html(f"""
+        <script>
+            localStorage.setItem("iz_coins", "{st.session_state.coins}");
+            localStorage.setItem("iz_daily", "{st.session_state.last_daily}");
+        </script>
+    """, height=0)
+
 # --- HLAVIČKA ---
 st.markdown("""
     <div class="header-container">
@@ -137,7 +173,7 @@ if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
-        save_state()
+        save_progress()
         st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
         st.rerun()
 else:
@@ -150,7 +186,7 @@ else:
 st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
-    save_state()
+    save_progress()
     st.rerun()
 
 # --- INVENTÁŘ KART ---
