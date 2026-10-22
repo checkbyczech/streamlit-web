@@ -2,12 +2,25 @@ import streamlit as st
 import time
 import base64
 import json
+from supabase import create_client, Client
 
 st.set_page_config(
     page_title="Infinity Zone",
     page_icon="♾️",
     layout="wide"
 )
+
+# --- PŘIPOJENÍ K SUPABASE ---
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_supabase()
+
+# Pro zjednodušení budeme prozatím používat jednoho výchozího hráče "default_player"
+PLAYER_ID = "default_player"
 
 # --- STYLY ---
 st.markdown("""
@@ -91,11 +104,49 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZACE STAVU ---
+# --- NAČTENÍ DAT ZE SUPABASE ---
+if "loaded_from_db" not in st.session_state:
+    try:
+        response = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
+        if response.data and len(response.data) > 0:
+            row = response.data[0]
+            st.session_state.coins = row.get("coins", 0)
+            st.session_state.last_daily = row.get("last_daily", 0.0)
+            st.session_state.inventory = row.get("inventory", [])
+        else:
+            # Pokud záznam neexistuje, vytvoříme ho
+            st.session_state.coins = 0
+            st.session_state.last_daily = 0.0
+            st.session_state.inventory = []
+            supabase.table("players").insert({
+                "id": PLAYER_ID,
+                "coins": 0,
+                "last_daily": 0.0,
+                "inventory": []
+            }).execute()
+        st.session_state.loaded_from_db = True
+    except Exception as e:
+        st.error(f"Chyba při načítání z databáze: {e}")
+        st.session_state.coins = 0
+        st.session_state.last_daily = 0.0
+        st.session_state.inventory = []
+
+# Pomocná funkce pro uložení změn do Supabase
+def save_to_db():
+    try:
+        supabase.table("players").update({
+            "coins": st.session_state.coins,
+            "last_daily": st.session_state.last_daily,
+            "inventory": st.session_state.inventory
+        }).eq("id", PLAYER_ID).execute()
+    except Exception as e:
+        st.error(f"Chyba při ukládání do databáze: {e}")
+
+# --- INICIALIZACE STAVU (fallback) ---
 if "coins" not in st.session_state:
     st.session_state.coins = 0
 if "last_daily" not in st.session_state:
-    st.session_state.last_daily = 0
+    st.session_state.last_daily = 0.0
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 
@@ -105,7 +156,7 @@ st.markdown("""
         <div class="iz-box">IZ</div>
         <div class="main-header">Infinity Zone</div>
     </div>
-    <div class="sub-header">Vítej na hlavním portálu tvojí aplikace</div>
+    <div class="sub-header">Vítej na hlavním portálu tvojí aplikace (Cloudová verze)</div>
 """, unsafe_allow_html=True)
 
 # --- KARTIČKA ZŮSTATKU ---
@@ -128,7 +179,8 @@ if current_time - st.session_state.last_daily > cooldown:
     if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
-        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
+        save_to_db()
+        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů a uložil do cloudu!")
         st.rerun()
 else:
     remaining = int(cooldown - (current_time - st.session_state.last_daily))
@@ -140,6 +192,7 @@ else:
 st.subheader("🎮 Tycoon Clicker")
 if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     st.session_state.coins += 1
+    save_to_db()
     st.rerun()
 
 # --- INVENTÁŘ KART ---
@@ -153,32 +206,3 @@ with col2:
     st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
 with col3:
     st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-
-# --- SPRÁVA POSTUPU (ULOŽENÍ / NAČTENÍ PŘES FORMULÁŘ) ---
-with st.expander("💾 Uložit / Načíst postup (Save Code)"):
-    st.write("Tvůj záchranný kód uchovává coiny, odpočet i inventář karet.")
-    
-    save_data = {
-        "coins": st.session_state.coins,
-        "last_daily": st.session_state.last_daily,
-        "inventory": st.session_state.inventory
-    }
-    code_str = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
-    
-    st.text_input("Tvůj kód pro uložení (zkopíruj si ho):", value=code_str)
-    
-    # Použití formuláře zajistí, že se textové pole nevymaže při odeslání
-    with st.form("load_form"):
-        input_code = st.text_input("Vlož svůj uložený kód pro obnovení:")
-        submit_button = st.form_submit_button("Obnovit postup z kódu")
-        
-        if submit_button:
-            try:
-                decoded_data = json.loads(base64.b64decode(input_code.encode("utf-8")).decode("utf-8"))
-                st.session_state.coins = decoded_data["coins"]
-                st.session_state.last_daily = decoded_data["last_daily"]
-                st.session_state.inventory = decoded_data.get("inventory", [])
-                st.success("Postup byl úspěšně obnoven!")
-                st.rerun()
-            except Exception:
-                st.error("Neplatný kód! Zkontroluj, zda jsi zkopíroval správný text.")
