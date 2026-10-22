@@ -11,7 +11,7 @@ try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
     supabase = None
-    st.error(f"Chyba připojení k Supabase (zkontroluj st.secrets): {e}")
+    st.error(f"Chyba připojení k Supabase: {e}")
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
 
@@ -110,7 +110,7 @@ def save_game_data():
     try:
         data = {
             "id": PLAYER_ID,
-            "coins": float(st.session_state.coins),
+            "coins": int(st.session_state.coins),
             "inventory": json.dumps(st.session_state.inventory),
             "last_daily": float(st.session_state.last_daily)
         }
@@ -161,7 +161,7 @@ if st.button("Odhlásit se"):
 st.write("Sbírej postavy, otevírej packy, vybírej denní odměny a buduj svůj pasivní příjem.")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("💰 Coiny", f"{st.session_state.coins:.1f}")
+col1.metric("💰 Coiny", f"{int(st.session_state.coins)}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
