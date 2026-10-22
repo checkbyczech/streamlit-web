@@ -1,250 +1,256 @@
-import streamlit as st
-import time
-import uuid
+import os
+import random
+from flask import Flask, render_template_string, request, redirect, url_for, session, flash
 from supabase import create_client, Client
 
-st.set_page_config(
-    page_title="Infinity Zone",
-    page_icon="♾️",
-    layout="wide"
-)
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-tajny-klic")
 
-# --- PŘIPOJENÍ K SUPABASE ---
-@st.cache_resource
-def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+# Supabase konfigurace
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-supabase = init_supabase()
+# Kompletní číselník postav podle naší dohody
+CHARACTERS = {
+    "dimenzionalni_ztroskotanec": {
+        "name": "Dimenzionální ztroskotanec",
+        "rarity": "Common",
+        "income": 1,
+        "description": "Obyčejný poutník, který zabloudil v mezidobí. S hodinkami v ruce neustále hledá cestu zpět domů do své dimenze."
+    },
+    "kvantovy_prenasec": {
+        "name": "Kvantový přenašeč",
+        "rarity": "Rare",
+        "income": 5,
+        "description": "Vylepšený bojovník z kyberprostoru s pulzujícím modrým pláštěm. Sleduje digitální stopy a v síti se pohybuje s naprostou lehkostí."
+    },
+    "strazkyne_nuloveho_bodu": {
+        "name": "Strážkyně nulového bodu",
+        "rarity": "Super Rare",
+        "income": 20,
+        "description": "Tajemná postava ovládající temnou energii a nebezpečné stíny. Dokáže nahlédnout do budoucnosti pomocí svých záhadných krystalů."
+    },
+    "singularni_titan": {
+        "name": "Singulární titan",
+        "rarity": "Epic",
+        "income": 100,
+        "description": "Masivní strážce vytvořený z čisté energie a odolných krystalů. Jeho tělo dokáže absorbovat obrovské množství poškození v každém boji."
+    },
+    "akolyt_nekonecna": {
+        "name": "Akolyt nekonečna",
+        "rarity": "Mythic",
+        "income": 500,
+        "description": "Vznešený obránce galaxie zahalený do zářivého zlatého brnění. Vyzařuje sílu samotného slunce a chrání ty nejvzácnější dimenze."
+    },
+    "architekt_infinity": {
+        "name": "Architekt Infinity",
+        "rarity": "Legendary",
+        "income": 2500,
+        "description": "Nejvzácnější vesmírná entita vládnoucí síle času i prostoru. Svou neomezenou mocí udržuje rovnováhu v celé Infinity Zone."
+    }
+}
 
-# --- STYLY ---
-st.markdown("""
+# Definice packů a šancí (v %)
+PACKS = {
+    "maly_pack": {
+        "name": "Malý pack",
+        "weights": [
+            ("dimenzionalni_ztroskotanec", 70.0),
+            ("kvantovy_prenasec", 25.0),
+            ("strazkyne_nuloveho_bodu", 5.0)
+        ]
+    },
+    "velky_pack": {
+        "name": "Velký pack",
+        "weights": [
+            ("dimenzionalni_ztroskotanec", 35.5),
+            ("kvantovy_prenasec", 30.0),
+            ("strazkyne_nuloveho_bodu", 20.0),
+            ("singularni_titan", 10.0),
+            ("akolyt_nekonecna", 4.0),
+            ("architekt_infinity", 0.5)
+        ]
+    }
+}
+
+def draw_character_from_pack(pack_key):
+    """Vytáhne náhodnou postavu podle vah v packu."""
+    pack = PACKS.get(pack_key)
+    if not pack:
+        return None
+    keys, weights = zip(*pack["weights"])
+    return random.choices(keys, weights=weights, k=1)[0]
+
+def calculate_hourly_income(inventory):
+    """Spočítá celkový pasivní příjem/hod podle postav v batohu."""
+    total_income = 0
+    for char_id in inventory:
+        if char_id in CHARACTERS:
+            total_income += CHARACTERS[char_id]["income"]
+    return total_income
+
+# HTML šablona s moderním designem pro Infinity Zone
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Infinity Zone</title>
     <style>
-    .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
-        color: #f8fafc;
-    }
-    .header-container {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 5px;
-    }
-    .iz-box {
-        background: linear-gradient(135deg, #4F46E5, #06B6D4);
-        min-width: 55px;
-        width: 55px;
-        height: 55px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        font-weight: 900;
-        color: #ffffff !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .sub-header {
-        font-size: 1.0rem;
-        color: #94a3b8;
-        margin-bottom: 25px;
-    }
-    .coin-card {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(10px);
-        padding: 15px 20px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    }
-    .coin-icon {
-        font-size: 2.5rem;
-    }
-    .coin-info {
-        display: flex;
-        flex-direction: column;
-    }
-    .coin-label {
-        color: #94a3b8;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .coin-value {
-        color: #f8fafc;
-        font-size: 1.8rem;
-        font-weight: 700;
-    }
-    .inventory-item {
-        background: rgba(30, 41, 59, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
-        padding: 12px 15px;
-        margin-bottom: 10px;
-        color: #f8fafc;
-        font-size: 1rem;
-    }
+        body { font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background-color: #1e293b; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1, h2, h3 { color: #38bdf8; }
+        button, .btn { background-color: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        button:hover, .btn:hover { background-color: #2563eb; }
+        .btn-danger { background-color: #ef4444; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
+        .char-card { background: #334155; padding: 15px; border-radius: 8px; border-left: 5px solid #94a3b8; }
+        .rarity-Common { border-color: #94a3b8; }
+        .rarity-Rare { border-color: #3b82f6; }
+        .rarity-Super Rare { border-color: #a855f7; }
+        .rarity-Epic { border-color: #ec4899; }
+        .rarity-Mythic { border-color: #f59e0b; }
+        .rarity-Legendary { border-color: #ef4444; }
+        .flash { background-color: #22c55e; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .packs-container { display: flex; gap: 20px; }
     </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
+    <div class="container">
+        <h1>🌌 Infinity Zone</h1>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="flash">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
-# Pomocná funkce pro uložení změn do Supabase
-def save_to_db():
-    if "user_id" in st.session_state:
-        try:
-            supabase.table("players").update({
-                "coins": st.session_state.coins,
-                "last_daily": st.session_state.last_daily,
-                "inventory": st.session_state.inventory
-            }).eq("id", st.session_state.user_id).execute()
-        except Exception as e:
-            st.error(f"Chyba při ukládání: {e}")
+        {% if not user %}
+            <div class="card">
+                <h2>Přihlášení / Registrace</h2>
+                <form action="/login" method="post">
+                    <input type="email" name="email" placeholder="E-mail" required style="padding: 8px; margin-right: 5px;">
+                    <input type="password" name="password" placeholder="Heslo" required style="padding: 8px; margin-right: 5px;">
+                    <button type="submit">Vstoupit do hry</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="card">
+                <p>Přihlášen jako: <strong>{{ user.email }}</strong> | <a href="/logout" style="color: #f43f5e;">Odhlásit se</a></p>
+                <h3>📊 Statistiky účtu</h3>
+                <p>⚡ Pasivní příjem: <strong>+{{ hourly_income }} coinů / hodinu</strong></p>
+                <form action="/reset" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Opravdu chceš vymazat svůj dynamický batoh?')">Začít od začátku</button>
+                </form>
+            </div>
 
-# --- PŘIHLAŠOVACÍ / REGISTRAČNÍ FORMULÁŘ ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+            <div class="card">
+                <h2>📦 Otevřít Pack</h2>
+                <div class="packs-container">
+                    <div>
+                        <h3>Malý pack</h3>
+                        <p>Obsahuje Common, Rare a Super Rare postavy.</p>
+                        <form action="/open-pack/maly_pack" method="post">
+                            <button type="submit">Otevřít Malý pack</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Velký pack</h3>
+                        <p>Obsahuje kompletní výběr včetně šance (0.5%) na Legendary!</p>
+                        <form action="/open-pack/velky_pack" method="post">
+                            <button type="submit">Otevřít Velký pack</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
-if not st.session_state.logged_in:
-    st.markdown("""
-        <div class="header-container">
-            <div class="iz-box">IZ</div>
-            <div class="main-header">Infinity Zone</div>
-        </div>
-        <div class="sub-header">Přihlášení do hry</div>
-    """, unsafe_allow_html=True)
-    
-    tab1, tab2 = st.tabs(["🔑 Přihlášení", "📝 Registrace"])
-    
-    with tab1:
-        with st.form("login_form"):
-            login_username = st.text_input("Uživatelské jméno")
-            login_password = st.text_input("Heslo", type="password")
-            login_btn = st.form_submit_button("Přihlásit se")
-            
-            if login_btn:
-                if login_username and login_password:
-                    res = supabase.table("players").select("*").eq("username", login_username).eq("password", login_password).execute()
-                    if res.data and len(res.data) > 0:
-                        user_data = res.data[0]
-                        st.session_state.logged_in = True
-                        st.session_state.user_id = user_data["id"]
-                        st.session_state.username = user_data["username"]
-                        st.session_state.coins = user_data.get("coins", 0)
-                        st.session_state.last_daily = user_data.get("last_daily", 0.0)
-                        st.session_state.inventory = user_data.get("inventory", [])
-                        st.success("Úspěšně přihlášen!")
-                        st.rerun()
-                    else:
-                        st.error("Nesprávné jméno nebo heslo!")
-                else:
-                    st.warning("Vyplň všechna pole.")
-
-    with tab2:
-        with st.form("register_form"):
-            reg_username = st.text_input("Nové uživatelské jméno")
-            reg_password = st.text_input("Nové heslo", type="password")
-            reg_btn = st.form_submit_button("Vytvořit účet")
-            
-            if reg_btn:
-                if reg_username and reg_password:
-                    existing = supabase.table("players").select("*").eq("username", reg_username).execute()
-                    if existing.data and len(existing.data) > 0:
-                        st.error("Toto uživatelské jméno je již zabrané!")
-                    else:
-                        new_id = str(uuid.uuid4())
-                        new_user = {
-                            "id": new_id,
-                            "username": reg_username,
-                            "password": reg_password,
-                            "coins": 0,
-                            "last_daily": 0.0,
-                            "inventory": []
-                        }
-                        supabase.table("players").insert(new_user).execute()
-                        st.success("Účet byl úspěšně vytvořen! Teď se můžeš přihlásit v záložce Přihlášení.")
-                else:
-                    st.warning("Vyplň všechna pole.")
-
-    st.stop()
-
-# --- HLAVNÍ HRA (ZOBRAZÍ SE AŽ PO PŘIHLÁŠENÍ) ---
-col_head, col_logout = st.columns([4, 1])
-with col_head:
-    st.markdown(f"""
-        <div class="header-container">
-            <div class="iz-box">IZ</div>
-            <div class="main-header">Infinity Zone</div>
-        </div>
-        <div class="sub-header">Vítej zpět, <b>{st.session_state.username}</b>!</div>
-    """, unsafe_allow_html=True)
-
-with col_logout:
-    if st.button("🚪 Odhlásit se"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-# --- KARTIČKA ZŮSTATKU ---
-st.markdown(f"""
-    <div class="coin-card">
-        <div class="coin-icon">🪙</div>
-        <div class="coin-info">
-            <span class="coin-label">Zůstatek coinů</span>
-            <span class="coin-value">{st.session_state.coins:,}</span>
-        </div>
+            <div class="card">
+                <h2>🎒 Dynamický batoh ({{ inventory|length }} postav)</h2>
+                {% if not inventory %}
+                    <p>Tvůj batoh je zatím prázdný. Zkus otevřít nějaký pack!</p>
+                {% else %}
+                    <div class="inventory-grid">
+                        {% for char_id in inventory %}
+                            {% set char = characters_db[char_id] %}
+                            <div class="char-card rarity-{{ char.rarity }}">
+                                <h4>{{ char.name }}</h4>
+                                <p><strong>Rarita:</strong> {{ char.rarity }}</p>
+                                <p><strong>Příjem:</strong> +{{ char.income }} coinů/h</p>
+                                <p><small><em>{{ char.description }}</em></small></p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
 
-# --- DENNÍ ODMĚNA ---
-st.subheader("🎁 Denní odměna")
-current_time = time.time()
-cooldown = 86400  # 24 hodin
+@app.route('/')
+def home():
+    user = session.get('user')
+    inventory = session.get('inventory', [])
+    hourly_income = calculate_hourly_income(inventory)
+    
+    return render_template_string(
+        HTML_TEMPLATE,
+        user=user,
+        inventory=inventory,
+        characters_db=CHARACTERS,
+        hourly_income=hourly_income
+    )
 
-if current_time - st.session_state.last_daily > cooldown:
-    if st.button("Vyzvednout denní odměnu (+100 coinů)", use_container_width=True):
-        st.session_state.coins += 100
-        st.session_state.last_daily = current_time
-        save_to_db()
-        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
-        st.rerun()
-else:
-    remaining = int(cooldown - (current_time - st.session_state.last_daily))
-    hours = remaining // 3600
-    minutes = (remaining % 3600) // 60
-    st.info(f"Další denní odměna bude dostupná za {hours}h {minutes}m.")
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    
+    # Jednoduché přihlášení (přizpůsobené pro Supabase nebo testování)
+    session['user'] = {'email': email}
+    if 'inventory' not in session:
+        session['inventory'] = []
+    
+    flash(f"Vítej ve hře, {email}!")
+    return redirect(url_for('home'))
 
-# --- TYCOON CLICKER ---
-st.subheader("🎮 Tycoon Clicker")
-if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
-    st.session_state.coins += 1
-    save_to_db()
-    st.rerun()
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("Byl jsi úspěšně odhlášen.")
+    return redirect(url_for('home'))
 
-# --- BATOH (DYNAMICKÝ INVENTÁŘ) ---
-with st.expander("🎒 Batoh (Sběratelské předměty)", expanded=False):
-    if not st.session_state.get("inventory"):
-        st.info("Tvůj batoh je zatím prázdný.")
+@app.route('/open-pack/<pack_key>', methods=['POST'])
+def open_pack(pack_key):
+    if 'user' not in session:
+        flash("Pro otevírání packů se musíš přihlásit.")
+        return redirect(url_for('home'))
+        
+    char_key = draw_character_from_pack(pack_key)
+    if char_key:
+        inventory = session.get('inventory', [])
+        inventory.append(char_key)
+        session['inventory'] = inventory
+        
+        char_info = CHARACTERS[char_key]
+        flash(f"🎉 Získal jsi postavů: {char_info['name']} ({char_info['rarity']})!")
     else:
-        for item in st.session_state.inventory:
-            st.markdown(f'<div class="inventory-item">📦 {item}</div>', unsafe_allow_html=True)
+        flash("Neznámý pack.")
+        
+    return redirect(url_for('home'))
 
-# --- NASTAVENÍ ÚČTU ---
-with st.expander("⚙️ Nastavení účtu"):
-    if st.button("🔄 Začít od začátku (Resetovat postup)", use_container_width=True):
-        st.session_state.coins = 0
-        st.session_state.last_daily = 0.0
-        st.session_state.inventory = []
-        save_to_db()
-        st.success("Tvůj postup byl úspěšně resetován!")
-        st.rerun()
+@app.route('/reset', methods=['POST'])
+def reset_progress():
+    if 'user' in session:
+        session['inventory'] = []
+        flash("Tvůj pokrok byl resetován (batoh je prázdný).")
+    return redirect(url_for('home'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
