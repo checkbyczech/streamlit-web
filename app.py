@@ -231,14 +231,14 @@ if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     save_to_db()
     st.rerun()
 
-# --- INVENTÁŘ KART ---
-st.subheader("🃏 Inventář karet")
-st.write("Tady najdeš své budoucí karty a sběratelské předměty.")
-
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.markdown('<div class="card-slot">🔒 Karta #1<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-with col3:
-    st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+# --- BATOH (INVENTÁŘ KART) ---
+with st.expander("🎒 Batoh (Sběratelské karty a předměty)", expanded=False):
+    st.write("Tady najdeš své uložené předměty a karty ze své sbírky.")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="card-slot">🔒 Karta #1<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
