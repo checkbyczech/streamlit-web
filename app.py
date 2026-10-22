@@ -242,3 +242,13 @@ with st.expander("🎒 Batoh (Sběratelské karty a předměty)", expanded=False
         st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
     with col3:
         st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+
+# --- NASTAVENÍ ÚČTU ---
+with st.expander("⚙️ Nastavení účtu"):
+    if st.button("🔄 Začít od začátku (Resetovat postup)", use_container_width=True):
+        st.session_state.coins = 0
+        st.session_state.last_daily = 0.0
+        st.session_state.inventory = []
+        save_to_db()
+        st.success("Tvůj postup byl úspěšně resetován!")
+        st.rerun()
