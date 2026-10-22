@@ -9,8 +9,9 @@ try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception:
+except Exception as e:
     supabase = None
+    st.error(f"Chyba při připojení k Supabase klíčům: {e}")
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
 
@@ -79,8 +80,8 @@ def load_game_data():
         res = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
         if res.data and len(res.data) > 0:
             return res.data[0]
-    except Exception:
-        pass
+    except Exception as e:
+        st.error(f"Chyba při načítání z databáze: {e}")
     return None
 
 def save_game_data():
@@ -95,8 +96,8 @@ def save_game_data():
             "last_income_time": float(st.session_state.last_income_time)
         }
         supabase.table("players").upsert(data).execute()
-    except Exception:
-        pass
+    except Exception as e:
+        st.error(f"Chyba při ukládání do databáze: {e}")
 
 # --- NAČTENÍ STAVU HRÁČE ---
 if "initialized" not in st.session_state:
