@@ -88,14 +88,14 @@ st.markdown("""
         font-size: 1.8rem;
         font-weight: 700;
     }
-    .card-slot {
+    .inventory-item {
         background: rgba(30, 41, 59, 0.5);
-        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 12px;
-        padding: 15px;
-        text-align: center;
-        color: #94a3b8;
-        font-size: 0.9rem;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        color: #f8fafc;
+        font-size: 1rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -231,17 +231,13 @@ if st.button("🪙 Kliknout pro +1 Coin", use_container_width=True):
     save_to_db()
     st.rerun()
 
-# --- BATOH (INVENTÁŘ KART) ---
-with st.expander("🎒 Batoh (Sběratelské karty a předměty)", expanded=False):
-    st.write("Tady najdeš své uložené předměty a karty ze své sbírky.")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="card-slot">🔒 Karta #1<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="card-slot">🔒 Karta #2<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="card-slot">🔒 Karta #3<br><small>Zatím prázdná</small></div>', unsafe_allow_html=True)
+# --- BATOH (DYNAMICKÝ INVENTÁŘ) ---
+with st.expander("🎒 Batoh (Sběratelské předměty)", expanded=False):
+    if not st.session_state.get("inventory"):
+        st.info("Tvůj batoh je zatím prázdný.")
+    else:
+        for item in st.session_state.inventory:
+            st.markdown(f'<div class="inventory-item">📦 {item}</div>', unsafe_allow_html=True)
 
 # --- NASTAVENÍ ÚČTU ---
 with st.expander("⚙️ Nastavení účtu"):
