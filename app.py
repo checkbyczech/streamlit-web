@@ -14,9 +14,7 @@ except Exception:
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
 
-PLAYER_ID = "default_player"
-
-# --- DEFINICE HERNICH DAT (POSTAVY A PACKY) ---
+# --- DEFINICE HERNICH DAT ---
 CHARACTERS = {
     "common": {
         "name": "Dimenzionální ztroskotanec",
@@ -71,7 +69,29 @@ PACKS = {
     }
 }
 
-# --- FUNKCE PRO PRÁCI S DATABÁZÍ ---
+# --- PŘIHLAŠOVACÍ OBRAZOVKA ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🌌 Infinity Zone - Přihlášení")
+    st.write("Zadej své hráčské jméno. Pokud už účet existuje, načte se tvůj postup:")
+    
+    username_input = st.text_input("Hráčské jméno")
+    if st.button("Vstoupit do hry"):
+        clean_name = username_input.strip()
+        if clean_name:
+            st.session_state.player_id = clean_name
+            st.session_state.logged_in = True
+            st.session_state.initialized = False  # Vynutí načtení z DB
+            st.rerun()
+        else:
+            st.error("Prosím, zadej platné jméno.")
+    st.stop()
+
+PLAYER_ID = st.session_state.player_id
+
+# --- FUNKCE PRO DATABÁZI ---
 def load_game_data():
     if not supabase:
         return None
@@ -97,10 +117,11 @@ def save_game_data():
     except Exception:
         pass
 
-# --- NAČTENÍ STAVU HRÁČE ---
-if "initialized" not in st.session_state:
+# --- NAČTENÍ HRÁČE PŘI STARTU ---
+if "initialized" not in st.session_state or not st.session_state.initialized:
     db_data = load_game_data()
     if db_data:
+        # Hráč už v databázi existuje -> načteme jeho reálný stav
         st.session_state.coins = float(db_data.get("coins", 200))
         inv_raw = db_data.get("inventory")
         if isinstance(inv_raw, str):
@@ -111,9 +132,12 @@ if "initialized" not in st.session_state:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
     else:
+        # Nový hráč -> dostane startovní hodnoty a hned se uloží do DB
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
+        save_game_data()
+        
     st.session_state.last_income_time = time.time()
     st.session_state.initialized = True
 
@@ -128,9 +152,14 @@ if elapsed_hours > 0:
     st.session_state.last_income_time = current_time
     save_game_data()
 
-# --- UI ---
-st.title("🌌 Infinity Zone")
-st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy, vybírejte denní odměny a budujte svůj pasivní příjem.")
+# --- HLAVNÍ UI HRY ---
+st.title(f"🌌 Infinity Zone — Hráč: {PLAYER_ID}")
+if st.button("Odhlásit se"):
+    st.session_state.logged_in = False
+    st.session_state.initialized = False
+    st.rerun()
+
+st.write("Sbírej postavy, otevírej packy, vybírej denní odměny a buduj svůj pasivní příjem.")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.1f}")
