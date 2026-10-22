@@ -4,7 +4,6 @@ import streamlit as st
 from supabase import create_client, Client
 
 # --- PŘIPOJENÍ K SUPABASE ---
-# Zkuste načíst klíče ze Streamlit secrets, případně doplňte vlastní
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -71,16 +70,14 @@ PACKS = {
 
 # --- STAV HRÁČE ---
 if "coins" not in st.session_state:
-    st.session_state.coins = 150  # Startovní kapitál na první packy
+    st.session_state.coins = 150
 if "inventory" not in st.session_state:
     st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
 if "last_income_time" not in st.session_state:
     st.session_state.last_income_time = time.time()
 
-# Výpočet celkového příjmu za hodinu
 total_income_per_hour = sum(st.session_state.inventory[k] * CHARACTERS[k]["income"] for k in CHARACTERS)
 
-# Připočtení pasivního příjmu podle uplynulého času
 current_time = time.time()
 elapsed_hours = (current_time - st.session_state.last_income_time) / 3600.0
 if elapsed_hours > 0:
@@ -88,11 +85,10 @@ if elapsed_hours > 0:
     st.session_state.coins += earned
     st.session_state.last_income_time = current_time
 
-# --- UŽIVATELSKÉ ROZHRANÍ (UI) ---
+# --- UI ---
 st.title("🌌 Infinity Zone")
 st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy a budujte svůj pasivní příjem.")
 
-# Horní panel s ekonomikou
 col1, col2, col3 = st.columns(3)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.1f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
@@ -100,7 +96,6 @@ col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
 st.divider()
 
-# Záložky pro přehledné ovládání
 tab1, tab2, tab3 = st.tabs(["🛒 Obchod s packy", "👥 Inventář postav", "📜 Přehled rarit"])
 
 with tab1:
@@ -110,11 +105,10 @@ with tab1:
     for i, (pack_id, pack_data) in enumerate(PACKS.items()):
         with (col_p1 if i == 0 else col_p2):
             st.markdown(f"### {pack_data['name']}")
-            st.write(ྀf"Cena: **{pack_data['price']} coinů**")
+            st.write(f"Cena: **{pack_data['price']} coinů**")
             if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
                 if st.session_state.coins >= pack_data['price']:
                     st.session_state.coins -= pack_data['price']
-                    # Losování postavy
                     chosen_key = random.choices(pack_data['keys'], weights=pack_data['weights'])[0]
                     st.session_state.inventory[chosen_key] += 1
                     won_char = CHARACTERS[chosen_key]
@@ -143,6 +137,5 @@ with tab3:
             st.write(f"**Popis:** {char['desc']}")
             st.write(f"**Pasivní příjem:** {char['income']} coinů za hodinu")
 
-# Automatická obnova stránky kvůli pasivnímu příjmu každých 10 sekund
 time.sleep(10)
 st.rerun()
