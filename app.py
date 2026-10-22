@@ -9,8 +9,9 @@ try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception:
+except Exception as e:
     supabase = None
+    st.error(f"Chyba připojení k Supabase (zkontroluj st.secrets): {e}")
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
 
@@ -83,7 +84,7 @@ if not st.session_state.logged_in:
         if clean_name:
             st.session_state.player_id = clean_name
             st.session_state.logged_in = True
-            st.session_state.initialized = False  # Vynutí načtení z DB
+            st.session_state.initialized = False
             st.rerun()
         else:
             st.error("Prosím, zadej platné jméno.")
@@ -99,8 +100,8 @@ def load_game_data():
         res = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
         if res.data and len(res.data) > 0:
             return res.data[0]
-    except Exception:
-        pass
+    except Exception as e:
+        st.error(f"Chyba při načítání dat: {e}")
     return None
 
 def save_game_data():
@@ -114,14 +115,13 @@ def save_game_data():
             "last_daily": float(st.session_state.last_daily)
         }
         supabase.table("players").upsert(data).execute()
-    except Exception:
-        pass
+    except Exception as e:
+        st.error(f"Chyba při ukládání dat: {e}")
 
 # --- NAČTENÍ HRÁČE PŘI STARTU ---
 if "initialized" not in st.session_state or not st.session_state.initialized:
     db_data = load_game_data()
     if db_data:
-        # Hráč už v databázi existuje -> načteme jeho reálný stav
         st.session_state.coins = float(db_data.get("coins", 200))
         inv_raw = db_data.get("inventory")
         if isinstance(inv_raw, str):
@@ -132,7 +132,6 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
     else:
-        # Nový hráč -> dostane startovní hodnoty a hned se uloží do DB
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
