@@ -1,3 +1,4 @@
+import json
 import random
 import time
 import streamlit as st
@@ -12,6 +13,8 @@ except Exception:
     supabase = None
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
+
+PLAYER_ID = "default_player"
 
 # --- DEFINICE HERNICH DAT (POSTAVY A PACKY) ---
 CHARACTERS = {
@@ -68,15 +71,53 @@ PACKS = {
     }
 }
 
-# --- STAV HRÁČE ---
-if "coins" not in st.session_state:
-    st.session_state.coins = 200
-if "inventory" not in st.session_state:
-    st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
-if "last_income_time" not in st.session_state:
-    st.session_state.last_income_time = time.time()
-if "last_daily" not in st.session_state:
-    st.session_state.last_daily = 0
+# --- FUNKCE PRO PRÁCI S DATABÁZÍ ---
+def load_game_data():
+    if not supabase:
+        return None
+    try:
+        res = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0]
+    except Exception:
+        pass
+    return None
+
+def save_game_data():
+    if not supabase:
+        return
+    try:
+        data = {
+            "id": PLAYER_ID,
+            "coins": float(st.session_state.coins),
+            "inventory": json.dumps(st.session_state.inventory),
+            "last_daily": float(st.session_state.last_daily),
+            "last_income_time": float(st.session_state.last_income_time)
+        }
+        supabase.table("players").upsert(data).execute()
+    except Exception:
+        pass
+
+# --- NAČTENÍ STAVU HRÁČE ---
+if "initialized" not in st.session_state:
+    db_data = load_game_data()
+    if db_data:
+        st.session_state.coins = float(db_data.get("coins", 200))
+        inv_raw = db_data.get("inventory")
+        if isinstance(inv_raw, str):
+            st.session_state.inventory = json.loads(inv_raw)
+        elif isinstance(inv_raw, dict):
+            st.session_state.inventory = inv_raw
+        else:
+            st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
+        st.session_state.last_daily = float(db_data.get("last_daily", 0))
+        st.session_state.last_income_time = float(db_data.get("last_income_time", time.time()))
+    else:
+        st.session_state.coins = 200
+        st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
+        st.session_state.last_daily = 0
+        st.session_state.last_income_time = time.time()
+    st.session_state.initialized = True
 
 # Výpočet příjmu
 total_income_per_hour = sum(st.session_state.inventory[k] * CHARACTERS[k]["income"] for k in CHARACTERS)
@@ -87,10 +128,11 @@ if elapsed_hours > 0:
     earned = elapsed_hours * total_income_per_hour
     st.session_state.coins += earned
     st.session_state.last_income_time = current_time
+    save_game_data()
 
 # --- UI ---
 st.title("🌌 Infinity Zone")
-st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy,vybírejte denní odměny a budujte svůj pasivní příjem.")
+st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy, vybírejte denní odměny a budujte svůj pasivní příjem.")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.1f}")
@@ -114,6 +156,7 @@ with tab1:
                     st.session_state.coins -= pack_data['price']
                     chosen_key = random.choices(pack_data['keys'], weights=pack_data['weights'])[0]
                     st.session_state.inventory[chosen_key] += 1
+                    save_game_data()
                     won_char = CHARACTERS[chosen_key]
                     st.success(f"Získal jsi: **{won_char['name']}** ({won_char['rarity']})!")
                     st.balloons()
@@ -125,13 +168,14 @@ with tab2:
     st.write("Každých 24 hodin si můžeš vyzvednout štědrou porci coinů zdarma na rozjezd.")
     
     now = time.time()
-    cooldown = 86400  # 24 hodin v sekundách
+    cooldown = 86400
     time_passed = now - st.session_state.last_daily
     
     if time_passed >= cooldown:
         if st.button("🎁 Vyzvednout denní odměnu (250 coinů)"):
             st.session_state.coins += 250
             st.session_state.last_daily = now
+            save_game_data()
             st.success("Úspěšně jsi vyzvednul denní odměnu 250 coinů!")
             st.rerun()
     else:
