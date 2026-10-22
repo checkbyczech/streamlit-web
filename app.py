@@ -11,7 +11,7 @@ try:
 except Exception:
     supabase = None
 
-st.set_page_title("Infinity Zone", layout="centered")
+st.set_page_config(page_title="Infinity Zone", layout="centered")
 
 # --- DEFINICE HERNICH DAT (POSTAVY A PACKY) ---
 CHARACTERS = {
@@ -70,12 +70,15 @@ PACKS = {
 
 # --- STAV HRÁČE ---
 if "coins" not in st.session_state:
-    st.session_state.coins = 150
+    st.session_state.coins = 200
 if "inventory" not in st.session_state:
     st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
 if "last_income_time" not in st.session_state:
     st.session_state.last_income_time = time.time()
+if "last_daily" not in st.session_state:
+    st.session_state.last_daily = 0
 
+# Výpočet příjmu
 total_income_per_hour = sum(st.session_state.inventory[k] * CHARACTERS[k]["income"] for k in CHARACTERS)
 
 current_time = time.time()
@@ -87,7 +90,7 @@ if elapsed_hours > 0:
 
 # --- UI ---
 st.title("🌌 Infinity Zone")
-st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy a budujte svůj pasivní příjem.")
+st.write("Vítejte v nekonečném vesmíru! Sbírejte postavy, otevírejte packy,vybírejte denní odměny a budujte svůj pasivní příjem.")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.1f}")
@@ -96,7 +99,7 @@ col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
 st.divider()
 
-tab1, tab2, tab3 = st.tabs(["🛒 Obchod s packy", "👥 Inventář postav", "📜 Přehled rarit"])
+tab1, tab2, tab3, tab4 = st.tabs(["🛒 Obchod s packy", "🎁 Denní odměna", "👥 Inventář postav", "📜 Přehled rarit"])
 
 with tab1:
     st.subheader("Otevřít balíček")
@@ -118,6 +121,26 @@ with tab1:
                     st.error("Nemáš dostatek coinů!")
 
 with tab2:
+    st.subheader("Vyzvednout denní bonus")
+    st.write("Každých 24 hodin si můžeš vyzvednout štědrou porci coinů zdarma na rozjezd.")
+    
+    now = time.time()
+    cooldown = 86400  # 24 hodin v sekundách
+    time_passed = now - st.session_state.last_daily
+    
+    if time_passed >= cooldown:
+        if st.button("🎁 Vyzvednout denní odměnu (250 coinů)"):
+            st.session_state.coins += 250
+            st.session_state.last_daily = now
+            st.success("Úspěšně jsi vyzvednul denní odměnu 250 coinů!")
+            st.rerun()
+    else:
+        remaining = int(cooldown - time_passed)
+        hours_left = remaining // 3600
+        minutes_left = (remaining % 3600) // 60
+        st.info(f"Další denní odměnu si můžeš vyzvednout za {hours_left}h {minutes_left}m.")
+
+with tab3:
     st.subheader("Tvůj tým a sbírka")
     for key, count in st.session_state.inventory.items():
         char = CHARACTERS[key]
@@ -130,7 +153,7 @@ with tab2:
             with c2:
                 st.markdown(f"### Počet: {count}")
 
-with tab3:
+with tab4:
     st.subheader("Seznam všech možných postav")
     for key, char in CHARACTERS.items():
         with st.expander(f"{char['name']} ({char['rarity']})"):
