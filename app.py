@@ -1,7 +1,6 @@
 import streamlit as st
 import time
-import base64
-import json
+import uuid
 from supabase import create_client, Client
 
 st.set_page_config(
@@ -18,9 +17,6 @@ def init_supabase() -> Client:
     return create_client(url, key)
 
 supabase = init_supabase()
-
-# Pro zjednodušení budeme prozatím používat jednoho výchozího hráče "default_player"
-PLAYER_ID = "default_player"
 
 # --- STYLY ---
 st.markdown("""
@@ -104,60 +100,100 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- NAČTENÍ DAT ZE SUPABASE ---
-if "loaded_from_db" not in st.session_state:
-    try:
-        response = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
-        if response.data and len(response.data) > 0:
-            row = response.data[0]
-            st.session_state.coins = row.get("coins", 0)
-            st.session_state.last_daily = row.get("last_daily", 0.0)
-            st.session_state.inventory = row.get("inventory", [])
-        else:
-            # Pokud záznam neexistuje, vytvoříme ho
-            st.session_state.coins = 0
-            st.session_state.last_daily = 0.0
-            st.session_state.inventory = []
-            supabase.table("players").insert({
-                "id": PLAYER_ID,
-                "coins": 0,
-                "last_daily": 0.0,
-                "inventory": []
-            }).execute()
-        st.session_state.loaded_from_db = True
-    except Exception as e:
-        st.error(f"Chyba při načítání z databáze: {e}")
-        st.session_state.coins = 0
-        st.session_state.last_daily = 0.0
-        st.session_state.inventory = []
-
 # Pomocná funkce pro uložení změn do Supabase
 def save_to_db():
-    try:
-        supabase.table("players").update({
-            "coins": st.session_state.coins,
-            "last_daily": st.session_state.last_daily,
-            "inventory": st.session_state.inventory
-        }).eq("id", PLAYER_ID).execute()
-    except Exception as e:
-        st.error(f"Chyba při ukládání do databáze: {e}")
+    if "user_id" in st.session_state:
+        try:
+            supabase.table("players").update({
+                "coins": st.session_state.coins,
+                "last_daily": st.session_state.last_daily,
+                "inventory": st.session_state.inventory
+            }).eq("id", st.session_state.user_id).execute()
+        except Exception as e:
+            st.error(f"Chyba při ukládání: {e}")
 
-# --- INICIALIZACE STAVU (fallback) ---
-if "coins" not in st.session_state:
-    st.session_state.coins = 0
-if "last_daily" not in st.session_state:
-    st.session_state.last_daily = 0.0
-if "inventory" not in st.session_state:
-    st.session_state.inventory = []
+# --- PŘIHLAŠOVACÍ / REGISTRAČNÍ FORMULÁŘ ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-# --- HLAVIČKA ---
-st.markdown("""
-    <div class="header-container">
-        <div class="iz-box">IZ</div>
-        <div class="main-header">Infinity Zone</div>
-    </div>
-    <div class="sub-header">Vítej na hlavním portálu tvojí aplikace (Cloudová verze)</div>
-""", unsafe_allow_html=True)
+if not st.session_state.logged_in:
+    st.markdown("""
+        <div class="header-container">
+            <div class="iz-box">IZ</div>
+            <div class="main-header">Infinity Zone</div>
+        </div>
+        <div class="sub-header">Přihlášení do hry</div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["🔑 Přihlášení", "📝 Registrace"])
+    
+    with tab1:
+        with st.form("login_form"):
+            login_username = st.text_input("Uživatelské jméno")
+            login_password = st.text_input("Heslo", type="password")
+            login_btn = st.form_submit_button("Přihlásit se")
+            
+            if login_btn:
+                if login_username and login_password:
+                    res = supabase.table("players").select("*").eq("username", login_username).eq("password", login_password).execute()
+                    if res.data and len(res.data) > 0:
+                        user_data = res.data[0]
+                        st.session_state.logged_in = True
+                        st.session_state.user_id = user_data["id"]
+                        st.session_state.username = user_data["username"]
+                        st.session_state.coins = user_data.get("coins", 0)
+                        st.session_state.last_daily = user_data.get("last_daily", 0.0)
+                        st.session_state.inventory = user_data.get("inventory", [])
+                        st.success("Úspěšně přihlášen!")
+                        st.rerun()
+                    else:
+                        st.error("Nesprávné jméno nebo heslo!")
+                else:
+                    st.warning("Vyplň všechna pole.")
+
+    with tab2:
+        with st.form("register_form"):
+            reg_username = st.text_input("Nové uživatelské jméno")
+            reg_password = st.text_input("Nové heslo", type="password")
+            reg_btn = st.form_submit_button("Vytvořit účet")
+            
+            if reg_btn:
+                if reg_username and reg_password:
+                    existing = supabase.table("players").select("*").eq("username", reg_username).execute()
+                    if existing.data and len(existing.data) > 0:
+                        st.error("Toto uživatelské jméno je již zabrané!")
+                    else:
+                        new_id = str(uuid.uuid4())
+                        new_user = {
+                            "id": new_id,
+                            "username": reg_username,
+                            "password": reg_password,
+                            "coins": 0,
+                            "last_daily": 0.0,
+                            "inventory": []
+                        }
+                        supabase.table("players").insert(new_user).execute()
+                        st.success("Účet byl úspěšně vytvořen! Teď se můžeš přihlásit v záložce Přihlášení.")
+                else:
+                    st.warning("Vyplň všechna pole.")
+
+    st.stop()
+
+# --- HLAVNÍ HRA (ZOBRAZÍ SE AŽ PO PŘIHLÁŠENÍ) ---
+col_head, col_logout = st.columns([4, 1])
+with col_head:
+    st.markdown(f"""
+        <div class="header-container">
+            <div class="iz-box">IZ</div>
+            <div class="main-header">Infinity Zone</div>
+        </div>
+        <div class="sub-header">Vítej zpět, <b>{st.session_state.username}</b>!</div>
+    """, unsafe_allow_html=True)
+
+with col_logout:
+    if st.button("🚪 Odhlásit se"):
+        st.session_state.logged_in = False
+        st.rerun()
 
 # --- KARTIČKA ZŮSTATKU ---
 st.markdown(f"""
@@ -180,7 +216,7 @@ if current_time - st.session_state.last_daily > cooldown:
         st.session_state.coins += 100
         st.session_state.last_daily = current_time
         save_to_db()
-        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů a uložil do cloudu!")
+        st.success("Úspěšně jsi vyzvedl denní odměnu +100 coinů!")
         st.rerun()
 else:
     remaining = int(cooldown - (current_time - st.session_state.last_daily))
