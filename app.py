@@ -9,9 +9,8 @@ try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e:
+except Exception:
     supabase = None
-    st.error(f"Chyba při připojení k Supabase klíčům: {e}")
 
 st.set_page_config(page_title="Infinity Zone", layout="centered")
 
@@ -80,8 +79,8 @@ def load_game_data():
         res = supabase.table("players").select("*").eq("id", PLAYER_ID).execute()
         if res.data and len(res.data) > 0:
             return res.data[0]
-    except Exception as e:
-        st.error(f"Chyba při načítání z databáze: {e}")
+    except Exception:
+        pass
     return None
 
 def save_game_data():
@@ -92,12 +91,11 @@ def save_game_data():
             "id": PLAYER_ID,
             "coins": float(st.session_state.coins),
             "inventory": json.dumps(st.session_state.inventory),
-            "last_daily": float(st.session_state.last_daily),
-            "last_income_time": float(st.session_state.last_income_time)
+            "last_daily": float(st.session_state.last_daily)
         }
         supabase.table("players").upsert(data).execute()
-    except Exception as e:
-        st.error(f"Chyba při ukládání do databáze: {e}")
+    except Exception:
+        pass
 
 # --- NAČTENÍ STAVU HRÁČE ---
 if "initialized" not in st.session_state:
@@ -112,12 +110,11 @@ if "initialized" not in st.session_state:
         else:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
-        st.session_state.last_income_time = float(db_data.get("last_income_time", time.time()))
     else:
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
-        st.session_state.last_income_time = time.time()
+    st.session_state.last_income_time = time.time()
     st.session_state.initialized = True
 
 # Výpočet příjmu
