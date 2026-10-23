@@ -70,24 +70,73 @@ PACKS = {
     }
 }
 
-# --- PŘIHLAŠOVACÍ OBRAZOVKA ---
+# --- PŘIHLAŠOVACÍ A REGISTRAČNÍ OBRAZOVKA ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.title("🌌 Infinity Zone - Přihlášení")
-    st.write("Zadej své hráčské jméno. Pokud už účet existuje, načte se tvůj postup:")
+    st.title("🌌 Infinity Zone — Vstup")
     
-    username_input = st.text_input("Hráčské jméno")
-    if st.button("Vstoupit do hry"):
-        clean_name = username_input.strip()
-        if clean_name:
-            st.session_state.player_id = clean_name
-            st.session_state.logged_in = True
-            st.session_state.initialized = False
-            st.rerun()
-        else:
-            st.error("Prosím, zadej platné jméno.")
+    auth_tab1, auth_tab2 = st.tabs(["🔑 Přihlášení", "📝 Registrace"])
+    
+    with auth_tab1:
+        st.subheader("Přihlásit se ke svému účtu")
+        login_name = st.text_input("Hráčské jméno", key="login_user")
+        login_pass = st.text_input("Heslo", type="password", key="login_pass")
+        
+        if st.button("Vstoupit do hry", key="btn_login"):
+            if login_name.strip() and login_pass:
+                try:
+                    res = supabase.table("players").select("*").eq("id", login_name.strip()).execute()
+                    if res.data and len(res.data) > 0:
+                        db_user = res.data[0]
+                        if db_user.get("password") == login_pass:
+                            st.session_state.player_id = login_name.strip()
+                            st.session_state.logged_in = True
+                            st.session_state.initialized = False
+                            st.rerun()
+                        else:
+                            st.error("Nesprávné heslo!")
+                    else:
+                        st.error("Tento hráč neexistuje. Zaregistruj se v záložce Registrace.")
+                except Exception as e:
+                    st.error(f"Chyba při přihlašování: {e}")
+            else:
+                st.warning("Vyplň jméno i heslo.")
+
+    with auth_tab2:
+        st.subheader("Vytvořit nový účet")
+        reg_name = st.text_input("Zvol si hráčské jméno", key="reg_user")
+        reg_pass = st.text_input("Zvol si heslo", type="password", key="reg_pass")
+        
+        if st.button("Zaregistrovat a vstoupit", key="btn_reg"):
+            if reg_name.strip() and reg_pass:
+                try:
+                    # Ověření, zda už hráč existuje
+                    res = supabase.table("players").select("*").eq("id", reg_name.strip()).execute()
+                    if res.data and len(res.data) > 0:
+                        st.error("Tento účet již existuje! Zvol jiné jméno nebo se přihlas.")
+                    else:
+                        # Vytvoření nového hráče
+                        initial_data = {
+                            "id": reg_name.strip(),
+                            "password": reg_pass,
+                            "coins": 200,
+                            "inventory": json.dumps({k: 0 for k in CHARACTERS.keys()}),
+                            "last_daily": 0,
+                            "last_income_time": time.time()
+                        }
+                        supabase.table("players").insert(initial_data).execute()
+                        st.session_state.player_id = reg_name.strip()
+                        st.session_state.logged_in = True
+                        st.session_state.initialized = False
+                        st.success("Registrace byla úspěšná! Vstupuji do hry...")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Chyba při registraci: {e}")
+            else:
+                st.warning("Vyplň jméno i heslo.")
+                
     st.stop()
 
 PLAYER_ID = st.session_state.player_id
@@ -115,7 +164,7 @@ def save_game_data():
             "last_daily": float(st.session_state.last_daily),
             "last_income_time": float(st.session_state.last_income_time)
         }
-        supabase.table("players").upsert(data).execute()
+        supabase.table("players").update(data).eq("id", PLAYER_ID).execute()
     except Exception as e:
         st.error(f"Chyba při ukládání dat: {e}")
 
@@ -170,6 +219,12 @@ col1, col2, col3 = st.columns(3)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
+
+# Rychlé tlačítko pro +1 coin
+if st.button("➕ Získat +1 coin"):
+    st.session_state.coins += 1
+    save_game_data()
+    st.rerun()
 
 st.divider()
 
