@@ -132,7 +132,9 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         else:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
-        st.session_state.last_income_time = float(db_data.get("last_income_time", time.time()))
+        
+        lit = db_data.get("last_income_time")
+        st.session_state.last_income_time = float(lit) if lit is not None else time.time()
     else:
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
