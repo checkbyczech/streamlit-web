@@ -167,7 +167,7 @@ if st.button("Odhlásit se"):
 st.write("Sbírej postavy, otevírej packy, vybírej denní odměny a buduj svůj pasivní příjem.")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("💰 Coiny", f"{int(st.session_state.coins)}")
+col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
