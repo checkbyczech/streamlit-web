@@ -112,7 +112,8 @@ def save_game_data():
             "id": PLAYER_ID,
             "coins": int(st.session_state.coins),
             "inventory": json.dumps(st.session_state.inventory),
-            "last_daily": float(st.session_state.last_daily)
+            "last_daily": float(st.session_state.last_daily),
+            "last_income_time": float(st.session_state.last_income_time)
         }
         supabase.table("players").upsert(data).execute()
     except Exception as e:
@@ -131,13 +132,14 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         else:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
+        st.session_state.last_income_time = float(db_data.get("last_income_time", time.time()))
     else:
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
+        st.session_state.last_income_time = time.time()
         save_game_data()
         
-    st.session_state.last_income_time = time.time()
     st.session_state.initialized = True
 
 # Výpočet příjmu
@@ -145,11 +147,13 @@ total_income_per_hour = sum(st.session_state.inventory[k] * CHARACTERS[k]["incom
 
 current_time = time.time()
 elapsed_hours = (current_time - st.session_state.last_income_time) / 3600.0
-if elapsed_hours > 0:
+if elapsed_hours > 0 and total_income_per_hour > 0:
     earned = elapsed_hours * total_income_per_hour
     st.session_state.coins += earned
     st.session_state.last_income_time = current_time
     save_game_data()
+else:
+    st.session_state.last_income_time = current_time
 
 # --- HLAVNÍ UI HRY ---
 st.title(f"🌌 Infinity Zone — Hráč: {PLAYER_ID}")
