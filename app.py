@@ -289,6 +289,16 @@ with tab3:
                 st.write(f"Příjem: {char['income']} coinů/h")
             with c2:
                 st.markdown(f"### Počet: {count}")
+                
+            # Možnost prodat postavu za 5x jejího hodinového příjmu
+            if count > 0:
+                sell_price = char["income"] * 5
+                if st.button(f"Prodat 1ks (+{sell_price} 💰)", key=f"sell_{key}"):
+                    st.session_state.inventory[key] -= 1
+                    st.session_state.coins += sell_price
+                    save_game_data()
+                    st.success(f"Prodal jsi {char['name']} za {sell_price} coinů!")
+                    st.rerun()
 
 with tab4:
     st.subheader("Seznam všech možných postav")
