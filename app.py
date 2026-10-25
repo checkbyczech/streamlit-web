@@ -226,11 +226,28 @@ col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
-# Rychlé tlačítko pro +1 coin
-if st.button("➕ Získat +1 coin"):
-    st.session_state.coins += 1
+# Vylepšené klikací tlačítko s dynamickou silou
+if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True):
+    st.session_state.coins += st.session_state.click_power
     save_game_data()
     st.rerun()
+
+st.divider()
+
+# Obchod s vylepšením kliku
+upgrade_cost = 100 * (2 ** (st.session_state.click_power - 1))
+st.write(f"Aktuální síla kliku: **+{st.session_state.click_power} coinů**")
+
+if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)"):
+    if st.session_state.coins >= upgrade_cost:
+        st.session_state.coins -= upgrade_cost
+        st.session_state.click_power += 1
+        save_game_data()
+        st.success("Síla kliknutí byla vylepšena!")
+        st.rerun()
+    else:
+        st.error("Na toto vylepšení nemáš dostatek coinů!")
+
 
 st.divider()
 
