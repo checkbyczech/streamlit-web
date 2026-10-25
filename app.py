@@ -113,12 +113,10 @@ if not st.session_state.logged_in:
         if st.button("Zaregistrovat a vstoupit", key="btn_reg"):
             if reg_name.strip() and reg_pass:
                 try:
-                    # Ověření, zda už hráč existuje
                     res = supabase.table("players").select("*").eq("id", reg_name.strip()).execute()
                     if res.data and len(res.data) > 0:
                         st.error("Tento účet již existuje! Zvol jiné jméno nebo se přihlas.")
                     else:
-                        # Vytvoření nového hráče
                         initial_data = {
                             "id": reg_name.strip(),
                             "password": reg_pass,
@@ -194,7 +192,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         
     st.session_state.initialized = True
 
-# Výpočet příjmu s bonusem za duplikáty (každý další kus navyšuje efektivitu)
+# Výpočet příjmu s bonusem za duplikáty
 total_income_per_hour = 0
 for k, count in st.session_state.inventory.items():
     if count > 0:
@@ -214,7 +212,7 @@ else:
 
 # --- HLAVNÍ UI HRY ---
 st.title(f"🌌 Infinity Zone — Hráč: {PLAYER_ID}")
-if st.button("Odhlásit se"):
+if st.button("Odhlásit se", key="logout_btn"):
     st.session_state.logged_in = False
     st.session_state.initialized = False
     st.rerun()
@@ -231,18 +229,18 @@ col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
 # Vylepšené klikací tlačítko
-if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True):
+if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True, key="main_click_btn"):
     st.session_state.coins += st.session_state.click_power
     save_game_data()
     st.rerun()
 
 st.divider()
 
-# Obchod s vylepšením kliku
+# Jedinečný obchod s vylepšením kliku
 upgrade_cost = 100 * (2 ** (st.session_state.click_power - 1))
 st.write(f"Aktuální síla kliku: **+{st.session_state.click_power} coinů**")
 
-if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)"):
+if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)", key="upgrade_click_btn"):
     if st.session_state.coins >= upgrade_cost:
         st.session_state.coins -= upgrade_cost
         st.session_state.click_power += 1
@@ -251,21 +249,6 @@ if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)"):
         st.rerun()
     else:
         st.error("Na toto vylepšení nemáš dostatek coinů!")
-
-# Obchod s vylepšením kliku
-upgrade_cost = 100 * (2 ** (st.session_state.click_power - 1))
-st.write(f"Aktuální síla kliku: **+{st.session_state.click_power} coinů**")
-
-if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)"):
-    if st.session_state.coins >= upgrade_cost:
-        st.session_state.coins -= upgrade_cost
-        st.session_state.click_power += 1
-        save_game_data()
-        st.success("Síla kliknutí byla vylepšena!")
-        st.rerun()
-    else:
-        st.error("Na toto vylepšení nemáš dostatek coinů!")
-
 
 st.divider()
 
@@ -300,7 +283,7 @@ with tab2:
     time_passed = now - st.session_state.last_daily
     
     if time_passed >= cooldown:
-        if st.button("🎁 Vyzvednout denní odměnu (250 coinů)"):
+        if st.button("🎁 Vyzvednout denní odměnu (250 coinů)", key="daily_bonus_btn"):
             st.session_state.coins += 250
             st.session_state.last_daily = now
             save_game_data()
@@ -325,7 +308,6 @@ with tab3:
             with c2:
                 st.markdown(f"### Počet: {count}")
                 
-            # Možnost prodat postavu za 5x jejího hodinového příjmu
             if count > 0:
                 sell_price = char["income"] * 5
                 if st.button(f"Prodat 1ks (+{sell_price} 💰)", key=f"sell_{key}"):
@@ -336,7 +318,7 @@ with tab3:
                     st.rerun()
 
 with tab4:
-    st.subheader("Seznam všech možných postav")
+    st.subheader("Seznam všech postav")
     for key, char in CHARACTERS.items():
         with st.expander(f"{char['name']} ({char['rarity']})"):
             st.write(f"**Popis:** {char['desc']}")
