@@ -123,7 +123,8 @@ if not st.session_state.logged_in:
                             "coins": 200,
                             "inventory": json.dumps({k: 0 for k in CHARACTERS.keys()}),
                             "last_daily": 0,
-                            "last_income_time": time.time()
+                            "last_income_time": time.time(),
+                            "click_power": 1
                         }
                         supabase.table("players").insert(initial_data).execute()
                         st.session_state.player_id = reg_name.strip()
@@ -161,7 +162,8 @@ def save_game_data():
             "coins": int(st.session_state.coins),
             "inventory": json.dumps(st.session_state.inventory),
             "last_daily": float(st.session_state.last_daily),
-            "last_income_time": float(st.session_state.last_income_time)
+            "last_income_time": float(st.session_state.last_income_time),
+            "click_power": int(st.session_state.click_power)
         }
         supabase.table("players").update(data).eq("id", PLAYER_ID).execute()
     except Exception as e:
@@ -180,6 +182,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         else:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
+        st.session_state.click_power = int(db_data.get("click_power", 1))
         
         lit = db_data.get("last_income_time")
         st.session_state.last_income_time = float(lit) if lit is not None else time.time()
@@ -187,6 +190,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         st.session_state.coins = 200
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
+        st.session_state.click_power = 1
         st.session_state.last_income_time = time.time()
         save_game_data()
         
@@ -219,7 +223,6 @@ if st.button("Odhlásit se", key="logout_btn"):
 
 st.write("Sbírej postavy, otevírej packy, vybírej denní odměny a buduj svůj pasivní příjem.")
 
-# Zajištění, že click_power vždy existuje
 if "click_power" not in st.session_state:
     st.session_state.click_power = 1
 
@@ -318,7 +321,7 @@ with tab3:
                     st.rerun()
 
 with tab4:
-    st.subheader("Seznam všech postav")
+    st.subheader("Seznam všech možných postav")
     for key, char in CHARACTERS.items():
         with st.expander(f"{char['name']} ({char['rarity']})"):
             st.write(f"**Popis:** {char['desc']}")
