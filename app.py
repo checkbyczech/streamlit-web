@@ -194,8 +194,13 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         
     st.session_state.initialized = True
 
-# Výpočet příjmu
-total_income_per_hour = sum(st.session_state.inventory[k] * CHARACTERS[k]["income"] for k in CHARACTERS)
+# Výpočet příjmu s bonusem za duplikáty (každý další kus navyšuje efektivitu)
+total_income_per_hour = 0
+for k, count in st.session_state.inventory.items():
+    if count > 0:
+        base_income = CHARACTERS[k]["income"]
+        char_total_income = base_income * count * (1 + 0.5 * (count - 1))
+        total_income_per_hour += char_total_income
 
 current_time = time.time()
 elapsed_hours = (current_time - st.session_state.last_income_time) / 3600.0
