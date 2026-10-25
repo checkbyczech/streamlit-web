@@ -226,12 +226,12 @@ col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
 col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
 
-# Vylepšené klikací tlačítko s dynamickou silou
-if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True):
-    st.session_state.coins += st.session_state.click_power
+# Rychlé tlačítko pro +1 coin
+if st.button("➕ Získat +1 coin"):
+    st.session_state.coins += 1
     save_game_data()
     st.rerun()
-
+    
 st.divider()
 
 # Obchod s vylepšením kliku
