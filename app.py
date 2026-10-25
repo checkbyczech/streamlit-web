@@ -124,7 +124,8 @@ if not st.session_state.logged_in:
                             "inventory": json.dumps({k: 0 for k in CHARACTERS.keys()}),
                             "last_daily": 0,
                             "last_income_time": time.time(),
-                            "click_power": 1
+                            "click_power": 1,
+                            "luck": 1
                         }
                         supabase.table("players").insert(initial_data).execute()
                         st.session_state.player_id = reg_name.strip()
@@ -163,7 +164,8 @@ def save_game_data():
             "inventory": json.dumps(st.session_state.inventory),
             "last_daily": float(st.session_state.last_daily),
             "last_income_time": float(st.session_state.last_income_time),
-            "click_power": int(st.session_state.click_power)
+            "click_power": int(st.session_state.click_power),
+            "luck": int(st.session_state.luck)
         }
         supabase.table("players").update(data).eq("id", PLAYER_ID).execute()
     except Exception as e:
@@ -183,6 +185,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
             st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
         st.session_state.click_power = int(db_data.get("click_power", 1))
+        st.session_state.luck = int(db_data.get("luck", 1))
         
         lit = db_data.get("last_income_time")
         st.session_state.last_income_time = float(lit) if lit is not None else time.time()
@@ -191,6 +194,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}
         st.session_state.last_daily = 0
         st.session_state.click_power = 1
+        st.session_state.luck = 1
         st.session_state.last_income_time = time.time()
         save_game_data()
         
@@ -225,13 +229,19 @@ st.write("Sbírej postavy, otevírej packy, vybírej denní odměny a buduj svů
 
 if "click_power" not in st.session_state:
     st.session_state.click_power = 1
+if "luck" not in st.session_state:
+    st.session_state.luck = 1
 
-col1, col2, col3 = st.columns(3)
+# Výpočet aktuálního bonusu štěstí v procentech (+0.5% za každý bod nad 1)
+luck_percentage = (st.session_state.luck - 1) * 0.5
+
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
 col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
-col3.metric("📦 Celkem postav", sum(st.session_state.inventory.values()))
+col3.metric("🍀 Štěstí", f"+{luck_percentage:.1f}%")
+col4.metric("📦 Postavy", sum(st.session_state.inventory.values()))
 
-# Vylepšené klikací tlačítko
+# Klikací tlačítko
 if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True, key="main_click_btn"):
     st.session_state.coins += st.session_state.click_power
     save_game_data()
@@ -239,7 +249,7 @@ if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_contai
 
 st.divider()
 
-# Jedinečný obchod s vylepšením kliku
+# Vylepšení síly kliku
 upgrade_cost = 100 * (2 ** (st.session_state.click_power - 1))
 st.write(f"Aktuální síla kliku: **+{st.session_state.click_power} coinů**")
 
@@ -259,6 +269,22 @@ tab1, tab2, tab3, tab4 = st.tabs(["🛒 Obchod s packy", "🎁 Denní odměna", 
 
 with tab1:
     st.subheader("Otevřít balíček")
+    
+    # Obchod s vylepšením štěstí přímo v záložce s packy
+    luck_cost = int(150 * (1.5 ** (st.session_state.luck - 1)))
+    st.markdown(f"**Vylepšit štěstí na packy** (Aktuální bonus: `+{luck_percentage:.1f}%`)")
+    if st.button(f"Zvýšit štěstí (+0.5% šance) — Cena: {luck_cost} 💰", key="upgrade_luck_btn"):
+        if st.session_state.coins >= luck_cost:
+            st.session_state.coins -= luck_cost
+            st.session_state.luck += 1
+            save_game_data()
+            st.success("Štěstí bylo vylepšeno! Šance na lepší postavy v packách vzrostla.")
+            st.rerun()
+        else:
+            st.error("Na vylepšení štěstí nemáš dostatek coinů!")
+            
+    st.divider()
+    
     col_p1, col_p2 = st.columns(2)
     
     for i, (pack_id, pack_data) in enumerate(PACKS.items()):
@@ -268,7 +294,21 @@ with tab1:
             if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
                 if st.session_state.coins >= pack_data['price']:
                     st.session_state.coins -= pack_data['price']
-                    chosen_key = random.choices(pack_data['keys'], weights=pack_data['weights'])[0]
+                    
+                    # Výpočet šancí s vlivem štěstí (+0.5% bonusu se promítá do vzácnějších postav)
+                    weights = list(pack_data['weights'])
+                    if st.session_state.luck > 1:
+                        bonus_factor = 1.0 + ((st.session_state.luck - 1) * 0.05)
+                        if len(weights) >= 6:
+                            weights[1] *= bonus_factor
+                            weights[2] *= bonus_factor * 1.2
+                            weights[3] *= bonus_factor * 1.5
+                            weights[4] *= bonus_factor * 2.0
+                            weights[5] *= bonus_factor * 3.0
+                            total_w = sum(weights)
+                            weights = [w / total_w for w in weights]
+                    
+                    chosen_key = random.choices(pack_data['keys'], weights=weights)[0]
                     st.session_state.inventory[chosen_key] += 1
                     save_game_data()
                     won_char = CHARACTERS[chosen_key]
