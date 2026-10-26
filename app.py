@@ -125,7 +125,8 @@ if not st.session_state.logged_in:
                             "last_daily": 0,
                             "last_income_time": time.time(),
                             "click_power": 1,
-                            "luck": 1
+                            "luck": 1,
+                            "rebirths": 0
                         }
                         supabase.table("players").insert(initial_data).execute()
                         st.session_state.player_id = reg_name.strip()
@@ -165,7 +166,8 @@ def save_game_data():
             "last_daily": float(st.session_state.last_daily),
             "last_income_time": float(st.session_state.last_income_time),
             "click_power": int(st.session_state.click_power),
-            "luck": int(st.session_state.luck)
+            "luck": int(st.session_state.luck),
+            "rebirths": int(st.session_state.rebirths)
         }
         supabase.table("players").update(data).eq("id", PLAYER_ID).execute()
     except Exception as e:
@@ -186,6 +188,7 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         st.session_state.last_daily = float(db_data.get("last_daily", 0))
         st.session_state.click_power = int(db_data.get("click_power", 1))
         st.session_state.luck = int(db_data.get("luck", 1))
+        st.session_state.rebirths = int(db_data.get("rebirths", 0))
         
         lit = db_data.get("last_income_time")
         st.session_state.last_income_time = float(lit) if lit is not None else time.time()
@@ -195,18 +198,22 @@ if "initialized" not in st.session_state or not st.session_state.initialized:
         st.session_state.last_daily = 0
         st.session_state.click_power = 1
         st.session_state.luck = 1
+        st.session_state.rebirths = 0
         st.session_state.last_income_time = time.time()
         save_game_data()
         
     st.session_state.initialized = True
 
-# Výpočet příjmu s bonusem za duplikáty
-total_income_per_hour = 0
+# Výpočet příjmu s bonusem za duplikáty a za Rebirth (+25% za každý Rebirth)
+base_income_per_hour = 0
 for k, count in st.session_state.inventory.items():
     if count > 0:
-        base_income = CHARACTERS[k]["income"]
-        char_total_income = base_income * count * (1 + 0.5 * (count - 1))
-        total_income_per_hour += char_total_income
+        b_inc = CHARACTERS[k]["income"]
+        char_total_income = b_inc * count * (1 + 0.5 * (count - 1))
+        base_income_per_hour += char_total_income
+
+rebirth_multiplier = 1.0 + (st.session_state.rebirths * 0.25)
+total_income_per_hour = base_income_per_hour * rebirth_multiplier
 
 current_time = time.time()
 elapsed_hours = (current_time - st.session_state.last_income_time) / 3600.0
@@ -231,19 +238,21 @@ if "click_power" not in st.session_state:
     st.session_state.click_power = 1
 if "luck" not in st.session_state:
     st.session_state.luck = 1
+if "rebirths" not in st.session_state:
+    st.session_state.rebirths = 0
 
-# Výpočet aktuálního bonusu štěstí v procentech (+0.5% za každý bod nad 1)
 luck_percentage = (st.session_state.luck - 1) * 0.5
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("💰 Coiny", f"{int(st.session_state.coins)}")
-col2.metric("⚡ Příjem za hod.", f"{int(total_income_per_hour)}")
+col2.metric("⚡ Příjem/h", f"{int(total_income_per_hour)}")
 col3.metric("🍀 Štěstí", f"+{luck_percentage:.1f}%")
-col4.metric("📦 Postavy", sum(st.session_state.inventory.values()))
+col4.metric("🌌 Rebirthy", f"{st.session_state.rebirths}")
 
-# Klikací tlačítko
-if st.button(f"Získat +{st.session_state.click_power} coin(y) 👆", use_container_width=True, key="main_click_btn"):
-    st.session_state.coins += st.session_state.click_power
+# Klikací tlačítko (síla kliku se taky násobí rebirthy)
+click_earned = int(st.session_state.click_power * rebirth_multiplier)
+if st.button(f"Získat +{click_earned} coin(y) 👆", use_container_width=True, key="main_click_btn"):
+    st.session_state.coins += click_earned
     save_game_data()
     st.rerun()
 
@@ -265,12 +274,11 @@ if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)", key="upgrade_cl
 
 st.divider()
 
-tab1, tab2, tab3, tab4 = st.tabs(["🛒 Obchod s packy", "🎁 Denní odměna", "👥 Inventář postav", "📜 Přehled rarit"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🛒 Obchod s packy", "🎁 Denní odměna", "👥 Inventář postav", "📜 Přehled rarit", "🌌 Rebirth"])
 
 with tab1:
     st.subheader("Otevřít balíček")
     
-    # Obchod s vylepšením štěstí přímo v záložce s packy
     luck_cost = int(150 * (1.5 ** (st.session_state.luck - 1)))
     st.markdown(f"**Vylepšit štěstí na packy** (Aktuální bonus: `+{luck_percentage:.1f}%`)")
     if st.button(f"Zvýšit štěstí (+0.5% šance) — Cena: {luck_cost} 💰", key="upgrade_luck_btn"):
@@ -295,7 +303,6 @@ with tab1:
                 if st.session_state.coins >= pack_data['price']:
                     st.session_state.coins -= pack_data['price']
                     
-                    # Výpočet šancí s vlivem štěstí (+0.5% bonusu se promítá do vzácnějších postav)
                     weights = list(pack_data['weights'])
                     if st.session_state.luck > 1:
                         bonus_factor = 1.0 + ((st.session_state.luck - 1) * 0.05)
@@ -366,6 +373,26 @@ with tab4:
         with st.expander(f"{char['name']} ({char['rarity']})"):
             st.write(f"**Popis:** {char['desc']}")
             st.write(f"**Pasivní příjem:** {char['income']} coinů za hodinu")
+
+with tab5:
+    st.subheader("🌌 Kvantový Rebirth")
+    st.write("Proveď znovuzrození, obětuj své stávající coiny a postavy a získej **trvalý bonus +25% k příjmu** za každý Rebirth!")
+    st.write(f"Cena Rebirthu: **50 000 coinů**")
+    st.write(f"Tvůj aktuální bonus z Rebirthů: **+{int(st.session_state.rebirths * 25)}%**")
+    
+    if st.button("🌌 Provést Rebirth (50 000 💰)", key="rebirth_btn"):
+        if st.session_state.coins >= 50000:
+            st.session_state.coins = 200  # Startovní coiny
+            st.session_state.inventory = {k: 0 for k in CHARACTERS.keys()}  # Reset postav
+            st.session_state.click_power = 1  # Reset síly kliku
+            st.session_state.luck = 1  # Reset štěstí
+            st.session_state.rebirths += 1  # Přičtení Rebirthu
+            save_game_data()
+            st.success("Gratuluji! Kvantový Rebirth proběhl úspěšně. Začínáš znovu s obřími bonusy!")
+            st.balloons()
+            st.rerun()
+        else:
+            st.error("Na Rebirth potřebuješ alespoň 50 000 coinů!")
 
 time.sleep(10)
 st.rerun()
