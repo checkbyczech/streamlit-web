@@ -236,8 +236,8 @@ if "luck" not in st.session_state:
 luck_percentage = (st.session_state.luck - 1) * 0.5
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("💰 Coiny", f"{st.session_state.coins:.2f}")
-col2.metric("⚡ Příjem za hod.", f"{total_income_per_hour} coinů")
+col1.metric("💰 Coiny", f"{int(st.session_state.coins)}")
+col2.metric("⚡ Příjem za hod.", f"{int(total_income_per_hour)}")
 col3.metric("🍀 Štěstí", f"+{luck_percentage:.1f}%")
 col4.metric("📦 Postavy", sum(st.session_state.inventory.values()))
 
