@@ -249,7 +249,7 @@ col2.metric("⚡ Příjem/h", f"{int(total_income_per_hour)}")
 col3.metric("🍀 Štěstí", f"+{luck_percentage:.1f}%")
 col4.metric("🌌 Rebirthy", f"{st.session_state.rebirths}")
 
-# Klikací tlačítko (síla kliku se taky násobí rebirthy)
+# Klikací tlačítko
 click_earned = int(st.session_state.click_power * rebirth_multiplier)
 if st.button(f"Získat +{click_earned} coin(y) 👆", use_container_width=True, key="main_click_btn"):
     st.session_state.coins += click_earned
@@ -326,18 +326,20 @@ with tab1:
 
 with tab2:
     st.subheader("Vyzvednout denní bonus")
-    st.write("Každých 24 hodin si můžeš vyzvednout štědrou porci coinů zdarma na rozjezd.")
+    st.write("Každých 24 hodin si můžeš vyzvednout denní odměnu (5 % z tvých celkových coinů, minimálně však 250 coinů).")
     
     now = time.time()
     cooldown = 86400
     time_passed = now - st.session_state.last_daily
     
+    daily_reward = max(250, int(st.session_state.coins * 0.05))
+    
     if time_passed >= cooldown:
-        if st.button("🎁 Vyzvednout denní odměnu (250 coinů)", key="daily_bonus_btn"):
-            st.session_state.coins += 250
+        if st.button(f"🎁 Vyzvednout denní odměnu ({daily_reward} coinů)", key="daily_bonus_btn"):
+            st.session_state.coins += daily_reward
             st.session_state.last_daily = now
             save_game_data()
-            st.success("Úspěšně jsi vyzvednul denní odměnu 250 coinů!")
+            st.success(f"Úspěšně jsi vyzvednul denní odměnu {daily_reward} coinů!")
             st.rerun()
     else:
         remaining = int(cooldown - time_passed)
