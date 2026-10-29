@@ -295,31 +295,43 @@ with tab1:
     st.divider()
     
     col_p1, col_p2 = st.columns(2)
-    
-    # Škálování cen packů podle rebirthů (např. +100% ceny za každý rebirth)
     pack_price_multiplier = 1.0 + (st.session_state.rebirths * 2.0)
     
     for i, (pack_id, pack_data) in enumerate(BASE_PACKS.items()):
         current_pack_price = int(pack_data["base_price"] * pack_price_multiplier)
         
-        with (col_p1 if i == 0 else col_p2):
-            st.markdown(f"### {pack_data['name']}")
+        # Výpočet šancí pro zobrazení v info okénku
+        weights = list(pack_data['weights'])
+        if st.session_state.luck > 1:
+            bonus_factor = 1.0 + ((st.session_state.luck - 1) * 0.05)
+            if len(weights) >= 6:
+                weights[1] *= bonus_factor
+                weights[2] *= bonus_factor * 1.2
+                weights[3] *= bonus_factor * 1.5
+                weights[4] *= bonus_factor * 2.0
+                weights[5] *= bonus_factor * 3.0
+        total_w = sum(weights)
+        percentages = [(w / total_w) * 100 for w in weights]
+        
+        target_col = col_p1 if i == 0 else col_p2
+        with target_col:
+            # Hlavička packu s "i" tlačítkiem (popover)
+            head_col1, head_col2 = st.columns([3, 1])
+            with head_col1:
+                st.markdown(f"### {pack_data['name']}")
+            with head_col2:
+                with st.popover("ℹ️"):
+                    st.markdown(f"**Šance v packu ({pack_data['name']})**")
+                    st.caption(f"Aktuální štěstí: +{luck_percentage:.1f}%")
+                    st.divider()
+                    rarity_names = ["Common", "Rare", "Super Rare", "Epic", "Mythic", "Legendary"]
+                    for r_name, p_val in zip(rarity_names, percentages):
+                        st.write(f"- **{r_name}**: `{p_val:.2f}%`")
+            
             st.write(f"Cena: **{current_pack_price} coinů**")
             if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
                 if st.session_state.coins >= current_pack_price:
                     st.session_state.coins -= current_pack_price
-                    
-                    weights = list(pack_data['weights'])
-                    if st.session_state.luck > 1:
-                        bonus_factor = 1.0 + ((st.session_state.luck - 1) * 0.05)
-                        if len(weights) >= 6:
-                            weights[1] *= bonus_factor
-                            weights[2] *= bonus_factor * 1.2
-                            weights[3] *= bonus_factor * 1.5
-                            weights[4] *= bonus_factor * 2.0
-                            weights[5] *= bonus_factor * 3.0
-                            total_w = sum(weights)
-                            weights = [w / total_w for w in weights]
                     
                     chosen_key = random.choices(pack_data['keys'], weights=weights)[0]
                     st.session_state.inventory[chosen_key] += 1
