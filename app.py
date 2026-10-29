@@ -55,16 +55,16 @@ CHARACTERS = {
     }
 }
 
-PACKS = {
+BASE_PACKS = {
     "small": {
         "name": "Malý pack",
-        "price": 100,
+        "base_price": 100,
         "weights": [0.70, 0.25, 0.05, 0.0, 0.0, 0.0],
         "keys": ["common", "rare", "super_rare", "epic", "mythic", "legendary"]
     },
     "large": {
         "name": "Velký pack",
-        "price": 500,
+        "base_price": 500,
         "weights": [0.355, 0.30, 0.20, 0.10, 0.04, 0.005],
         "keys": ["common", "rare", "super_rare", "epic", "mythic", "legendary"]
     }
@@ -259,7 +259,7 @@ if st.button(f"Získat +{click_earned} coin(y) 👆", use_container_width=True, 
 st.divider()
 
 # Vylepšení síly kliku
-upgrade_cost = 100 * (2 ** (st.session_state.click_power - 1))
+upgrade_cost = int(100 * (2 ** (st.session_state.click_power - 1)) * (1 + st.session_state.rebirths * 0.5))
 st.write(f"Aktuální síla kliku: **+{st.session_state.click_power} coinů**")
 
 if st.button(f"Vylepšit klikání (Cena: {upgrade_cost} 💰)", key="upgrade_click_btn"):
@@ -278,8 +278,9 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["🛒 Obchod s packy", "🎁 Denní odm�
 
 with tab1:
     st.subheader("Otevřít balíček")
+    st.write("Ceny a odměny packů se automaticky přizpůsobují tvému postupu a počtu Rebirthů!")
     
-    luck_cost = int(150 * (1.5 ** (st.session_state.luck - 1)))
+    luck_cost = int(150 * (1.5 ** (st.session_state.luck - 1)) * (1 + st.session_state.rebirths * 0.5))
     st.markdown(f"**Vylepšit štěstí na packy** (Aktuální bonus: `+{luck_percentage:.1f}%`)")
     if st.button(f"Zvýšit štěstí (+0.5% šance) — Cena: {luck_cost} 💰", key="upgrade_luck_btn"):
         if st.session_state.coins >= luck_cost:
@@ -295,13 +296,18 @@ with tab1:
     
     col_p1, col_p2 = st.columns(2)
     
-    for i, (pack_id, pack_data) in enumerate(PACKS.items()):
+    # Škálování cen packů podle rebirthů (např. +100% ceny za každý rebirth)
+    pack_price_multiplier = 1.0 + (st.session_state.rebirths * 2.0)
+    
+    for i, (pack_id, pack_data) in enumerate(BASE_PACKS.items()):
+        current_pack_price = int(pack_data["base_price"] * pack_price_multiplier)
+        
         with (col_p1 if i == 0 else col_p2):
             st.markdown(f"### {pack_data['name']}")
-            st.write(f"Cena: **{pack_data['price']} coinů**")
+            st.write(f"Cena: **{current_pack_price} coinů**")
             if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
-                if st.session_state.coins >= pack_data['price']:
-                    st.session_state.coins -= pack_data['price']
+                if st.session_state.coins >= current_pack_price:
+                    st.session_state.coins -= current_pack_price
                     
                     weights = list(pack_data['weights'])
                     if st.session_state.luck > 1:
@@ -361,7 +367,7 @@ with tab3:
                 st.markdown(f"### Počet: {count}")
                 
             if count > 0:
-                sell_price = char["income"] * 5
+                sell_price = int(char["income"] * 5 * (1 + st.session_state.rebirths * 0.5))
                 if st.button(f"Prodat 1ks (+{sell_price} 💰)", key=f"sell_{key}"):
                     st.session_state.inventory[key] -= 1
                     st.session_state.coins += sell_price
