@@ -315,11 +315,25 @@ with tab1:
         
         target_col = col_p1 if i == 0 else col_p2
         with target_col:
-            # Hlavička packu s "i" tlačítkiem (popover)
-            head_col1, head_col2 = st.columns([3, 1])
-            with head_col1:
-                st.markdown(f"### {pack_data['name']}")
-            with head_col2:
+            st.markdown(f"### {pack_data['name']}")
+            st.write(f"Cena: **{current_pack_price} coinů**")
+            
+            # Tlačítko nákupu a infografika vedle sebe
+            btn_col1, btn_col2 = st.columns([4, 1])
+            with btn_col1:
+                if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
+                    if st.session_state.coins >= current_pack_price:
+                        st.session_state.coins -= current_pack_price
+                        
+                        chosen_key = random.choices(pack_data['keys'], weights=weights)[0]
+                        st.session_state.inventory[chosen_key] += 1
+                        save_game_data()
+                        won_char = CHARACTERS[chosen_key]
+                        st.success(f"Získal jsi: **{won_char['name']}** ({won_char['rarity']})!")
+                        st.balloons()
+                    else:
+                        st.error("Nemáš dostatek coinů!")
+            with btn_col2:
                 with st.popover("ℹ️"):
                     st.markdown(f"**Šance v packu ({pack_data['name']})**")
                     st.caption(f"Aktuální štěstí: +{luck_percentage:.1f}%")
@@ -327,20 +341,6 @@ with tab1:
                     rarity_names = ["Common", "Rare", "Super Rare", "Epic", "Mythic", "Legendary"]
                     for r_name, p_val in zip(rarity_names, percentages):
                         st.write(f"- **{r_name}**: `{p_val:.2f}%`")
-            
-            st.write(f"Cena: **{current_pack_price} coinů**")
-            if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
-                if st.session_state.coins >= current_pack_price:
-                    st.session_state.coins -= current_pack_price
-                    
-                    chosen_key = random.choices(pack_data['keys'], weights=weights)[0]
-                    st.session_state.inventory[chosen_key] += 1
-                    save_game_data()
-                    won_char = CHARACTERS[chosen_key]
-                    st.success(f"Získal jsi: **{won_char['name']}** ({won_char['rarity']})!")
-                    st.balloons()
-                else:
-                    st.error("Nemáš dostatek coinů!")
 
 with tab2:
     st.subheader("Vyzvednout denní bonus")
