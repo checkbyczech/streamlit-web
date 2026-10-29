@@ -318,10 +318,10 @@ with tab1:
             st.markdown(f"### {pack_data['name']}")
             st.write(f"Cena: **{current_pack_price} coinů**")
             
-            # Tlačítko nákupu a infografika vedle sebe
+            # Tlačítko nákupu a infografika vedle sebe v jedné lajně
             btn_col1, btn_col2 = st.columns([4, 1])
             with btn_col1:
-                if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}"):
+                if st.button(f"Koupit a otevřít", key=f"pack_{pack_id}", use_container_width=True):
                     if st.session_state.coins >= current_pack_price:
                         st.session_state.coins -= current_pack_price
                         
@@ -334,7 +334,7 @@ with tab1:
                     else:
                         st.error("Nemáš dostatek coinů!")
             with btn_col2:
-                with st.popover("ℹ️"):
+                with st.popover("ℹ️", use_container_width=True):
                     st.markdown(f"**Šance v packu ({pack_data['name']})**")
                     st.caption(f"Aktuální štěstí: +{luck_percentage:.1f}%")
                     st.divider()
